@@ -4,13 +4,15 @@
   "description": "Interactive Digital Signage for Lanna Polytechnic College with AI Assistant",
   "private": true,
   "dependencies": {
+    "date-fns": "^4.1.0",
     "face-api.js": "^0.22.2",
     "firebase": "^10.7.1",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "recharts": "^3.6.0"
   },
   "scripts": {
     "start": "react-app-rewired start",
