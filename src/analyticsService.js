@@ -1,14 +1,12 @@
 // src/analyticsService.js
-import { getFirestore, collection, addDoc, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-
-const db = getFirestore();
+import { getFirestore, collection, addDoc, query, where, onSnapshot, Timestamp, getDocs, deleteDoc } from 'firebase/firestore';
+import { db } from './firebaseConfig';
 
 // บันทึกการคลิกของผู้ใช้
 export const trackClick = async (elementId, pageUrl, coordinates) => {
   try {
-    const auth = getAuth();
-    const user = auth.currentUser;
+    const userId = localStorage.getItem('userId') || 'anonymous_' + Date.now();
+    localStorage.setItem('userId', userId);
 
     await addDoc(collection(db, 'heatmap_clicks'), {
       elementId,
@@ -16,69 +14,98 @@ export const trackClick = async (elementId, pageUrl, coordinates) => {
       x: coordinates.x,
       y: coordinates.y,
       timestamp: Timestamp.now(),
-      userId: user?.uid || 'anonymous',
+      userId: userId,
       screenWidth: window.innerWidth,
       screenHeight: window.innerHeight
     });
+
+    console.log('✅ Click tracked:', { elementId, pageUrl });
   } catch (error) {
-    console.error('Error tracking click:', error);
+    console.error('❌ Error tracking click:', error);
   }
 };
 
-// บันทึกข้อมูล Session ของผู้ใช้
+// บันทึกข้อมูล Session ของผู้ใช้ (จาก Face Analyzer)
 export const trackUserSession = async (userData) => {
   try {
-    await addDoc(collection(db, 'user_sessions'), {
-      userId: userData.userId,
+    let userId = localStorage.getItem('userId');
+    if (!userId) {
+      userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('userId', userId);
+    }
+
+    const sessionData = {
+      userId: userId,
       gender: userData.gender || null,
-      age: userData.age || null,
+      age: userData.age ? parseInt(userData.age) : null,
       sessionStart: Timestamp.now(),
       deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-      browser: navigator.userAgent,
-      location: userData.location || null
-    });
+      browser: navigator.userAgent
+    };
+
+    await addDoc(collection(db, 'user_sessions'), sessionData);
+    console.log('✅ Session tracked:', sessionData);
   } catch (error) {
-    console.error('Error tracking session:', error);
+    console.error('❌ Error tracking session:', error);
   }
 };
 
 // ดึงข้อมูล Heatmap (Real-time)
 export const getHeatmapData = (pageUrl, callback) => {
-  const q = query(
-    collection(db, 'heatmap_clicks'),
-    where('pageUrl', '==', pageUrl)
-  );
+  try {
+    const q = query(
+      collection(db, 'heatmap_clicks'),
+      where('pageUrl', '==', pageUrl)
+    );
 
-  return onSnapshot(q, (snapshot) => {
-    const clicks = [];
-    snapshot.forEach((doc) => {
-      clicks.push({ id: doc.id, ...doc.data() });
+    return onSnapshot(q, (snapshot) => {
+      const clicks = [];
+      snapshot.forEach((doc) => {
+        clicks.push({ id: doc.id, ...doc.data() });
+      });
+      console.log('📊 Heatmap loaded:', clicks.length, 'clicks');
+      callback(clicks);
     });
-    callback(clicks);
-  });
+  } catch (error) {
+    console.error('❌ Error loading heatmap:', error);
+    callback([]);
+  }
 };
 
 // ดึงสถิติผู้ใช้งาน (Real-time)
 export const getDashboardStats = (callback) => {
-  const q = query(collection(db, 'user_sessions'));
+  try {
+    const q = query(collection(db, 'user_sessions'));
 
-  return onSnapshot(q, (snapshot) => {
-    const sessions = [];
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      sessions.push({
-        id: doc.id,
-        ...data,
-        sessionStart: data.sessionStart?.toDate()
+    return onSnapshot(q, (snapshot) => {
+      const sessions = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        sessions.push({
+          id: doc.id,
+          ...data,
+          sessionStart: data.sessionStart?.toDate()
+        });
       });
-    });
 
-    const stats = calculateStats(sessions);
-    callback(stats);
-  });
+      console.log('📊 Dashboard loaded:', sessions.length, 'sessions');
+      const stats = calculateStats(sessions);
+      callback(stats);
+    });
+  } catch (error) {
+    console.error('❌ Error loading dashboard:', error);
+    callback({
+      totalUsers: 0,
+      todayUsers: 0,
+      genderDistribution: {},
+      ageDistribution: {},
+      hourlyActivity: {},
+      deviceTypes: {}
+    });
+  }
 };
 
-// คำนวณสถิติต่างๆ
+// คำนวณสถิติ
 const calculateStats = (sessions) => {
   const now = new Date();
   const today = sessions.filter(s => {
@@ -118,4 +145,42 @@ const calculateStats = (sessions) => {
       return acc;
     }, {})
   };
+};
+
+// ลบข้อมูลเก่า (30 วัน)
+export const cleanupOldData = async () => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const clicksQuery = query(
+      collection(db, 'heatmap_clicks'),
+      where('timestamp', '<', Timestamp.fromDate(thirtyDaysAgo))
+    );
+    const clicksSnapshot = await getDocs(clicksQuery);
+    
+    let deletedClicks = 0;
+    for (const docSnap of clicksSnapshot.docs) {
+      await deleteDoc(docSnap.ref);
+      deletedClicks++;
+    }
+
+    const sessionsQuery = query(
+      collection(db, 'user_sessions'),
+      where('sessionStart', '<', Timestamp.fromDate(thirtyDaysAgo))
+    );
+    const sessionsSnapshot = await getDocs(sessionsQuery);
+    
+    let deletedSessions = 0;
+    for (const docSnap of sessionsSnapshot.docs) {
+      await deleteDoc(docSnap.ref);
+      deletedSessions++;
+    }
+
+    console.log(`✅ Cleaned: ${deletedClicks} clicks, ${deletedSessions} sessions`);
+    return { deletedClicks, deletedSessions };
+  } catch (error) {
+    console.error('❌ Error cleaning:', error);
+    return { deletedClicks: 0, deletedSessions: 0 };
+  }
 };

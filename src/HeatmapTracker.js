@@ -1,4 +1,4 @@
-// src/HeatmapTracker.js
+// src/HeatmapTracker.js - Track การคลิกทุกหน้า
 import { useEffect } from 'react';
 import { trackClick } from './analyticsService';
 
@@ -13,6 +13,7 @@ const HeatmapTracker = ({ children, enabled = true }) => {
       const x = e.clientX;
       const y = e.clientY;
       
+      // บันทึกการคลิก
       trackClick(elementId, window.location.pathname, { x, y });
     };
 

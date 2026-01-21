@@ -2,6 +2,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
 import { Camera, X } from 'lucide-react';
+// ⭐ เพิ่มบรรทัดนี้
+import { trackUserSession } from './analyticsService';
 
 const FaceAnalyzerPopup = ({ onClose, onAnalysisComplete, language }) => {
   const videoRef = useRef(null);
@@ -105,13 +107,35 @@ const FaceAnalyzerPopup = ({ onClose, onAnalysisComplete, language }) => {
             if (genderProbability > 0.7) {
               setAnalyzing(false);
               
+              // ⭐ เพิ่มส่วนนี้ - บันทึกข้อมูลลง Firestore
+              const profileData = {
+                gender,
+                age: Math.round(age),
+                confidence: genderProbability
+              };
+
+              console.log('👤 Face detected:', profileData);
+
+              try {
+                // บันทึกลง localStorage
+                localStorage.setItem('userGender', gender);
+                localStorage.setItem('userAge', Math.round(age).toString());
+                localStorage.setItem('hasFilledProfile', 'true');
+
+                // บันทึก session ลง Firestore
+                await trackUserSession({
+                  gender: gender,
+                  age: Math.round(age)
+                });
+
+                console.log('✅ Face data saved to Analytics');
+              } catch (error) {
+                console.error('❌ Error saving face data:', error);
+              }
+
               // รอ 1 วินาที แล้วส่งผลลัพธ์
               setTimeout(() => {
-                onAnalysisComplete({
-                  gender,
-                  age: Math.round(age),
-                  confidence: genderProbability
-                });
+                onAnalysisComplete(profileData);
               }, 1000);
             }
           }
