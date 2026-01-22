@@ -1,21 +1,14 @@
-// src/analyticsService.js (แก้ไขให้นับผู้ใช้ถูกต้อง)
+// src/analyticsService.js (ฉบับแก้ไขใหม่ - ไม่มีปัญหาซ้ำ)
 import { getFirestore, collection, addDoc, query, where, onSnapshot, Timestamp, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
-// Helper: Get today's date in YYYY-MM-DD format
+// Get today's date
 const getTodayDate = () => {
   const today = new Date();
-  return today.toISOString().split('T')[0]; // เช่น "2025-01-23"
+  return today.toISOString().split('T')[0];
 };
 
-// Helper: Check if session exists today
-const hasSessionToday = () => {
-  const lastSessionDate = localStorage.getItem('lastSessionDate');
-  const today = getTodayDate();
-  return lastSessionDate === today;
-};
-
-// บันทึกการคลิกของผู้ใช้
+// บันทึกการคลิก
 export const trackClick = async (elementId, pageUrl, coordinates) => {
   try {
     const userId = localStorage.getItem('userId') || 'anonymous_' + Date.now();
@@ -39,22 +32,14 @@ export const trackClick = async (elementId, pageUrl, coordinates) => {
   }
 };
 
-// บันทึกข้อมูล Session ของผู้ใช้ (จาก Face Analyzer)
+// ⭐ บันทึก Session (แก้ไขใหม่ - ไม่มีการเช็คซ้ำ)
 export const trackUserSession = async (userData) => {
   try {
-    // เช็คว่าวันนี้สร้าง session ไปแล้วหรือยัง
-    if (hasSessionToday()) {
-      console.log('⏭️ Session already exists today, skipping...');
-      return;
-    }
-
-    let userId = localStorage.getItem('userId');
-    if (!userId) {
-      userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('userId', userId);
-    }
-
+    // สร้าง userId ใหม่ทุกครั้ง (unique)
+    const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const today = getTodayDate();
+
+    console.log('💾 Saving new session:', { userId, date: today });
 
     const sessionData = {
       userId: userId,
@@ -68,6 +53,10 @@ export const trackUserSession = async (userData) => {
 
     await addDoc(collection(db, 'user_sessions'), sessionData);
     
+    // บันทึก userId ลง localStorage
+    localStorage.setItem('userId', userId);
+    localStorage.setItem('userGender', userData.gender || 'unknown');
+    localStorage.setItem('userAge', userData.age?.toString() || '0');
     localStorage.setItem('lastSessionDate', today);
     
     console.log('✅ Session tracked:', sessionData);
@@ -76,7 +65,7 @@ export const trackUserSession = async (userData) => {
   }
 };
 
-// ดึงข้อมูล Heatmap (Real-time) - แยกตามวัน
+// ดึงข้อมูล Heatmap
 export const getHeatmapData = (pageUrl, callback, dateFilter = 'today') => {
   try {
     let q;
@@ -88,7 +77,7 @@ export const getHeatmapData = (pageUrl, callback, dateFilter = 'today') => {
         where('pageUrl', '==', pageUrl),
         where('date', '==', today)
       );
-    } else if (dateFilter === 'all') {
+    } else {
       q = query(
         collection(db, 'heatmap_clicks'),
         where('pageUrl', '==', pageUrl)
@@ -109,7 +98,7 @@ export const getHeatmapData = (pageUrl, callback, dateFilter = 'today') => {
   }
 };
 
-// ดึงสถิติผู้ใช้งาน (Real-time)
+// ⭐ ดึงสถิติ Dashboard (แก้ไขใหม่)
 export const getDashboardStats = (callback) => {
   try {
     const q = query(collection(db, 'user_sessions'));
@@ -125,7 +114,7 @@ export const getDashboardStats = (callback) => {
         });
       });
 
-      console.log('📊 Dashboard loaded:', sessions.length, 'sessions');
+      console.log('📊 Dashboard loaded:', sessions.length, 'total sessions');
       const stats = calculateStats(sessions);
       callback(stats);
     });
@@ -142,69 +131,87 @@ export const getDashboardStats = (callback) => {
   }
 };
 
-// ⭐ แก้ไขฟังก์ชันนี้ - คำนวณสถิติให้ถูกต้อง
+// ⭐ คำนวณสถิติ (แก้ไขใหม่ - นับ Unique Users ถูกต้อง)
 const calculateStats = (sessions) => {
   const today = getTodayDate();
   
-  // นับ Unique Users ตามวัน (ไม่นับซ้ำ)
-  const todaySessions = sessions.filter(s => s.date === today);
-  const uniqueUsersToday = new Set(todaySessions.map(s => s.userId)).size;
-
-  // นับผู้ใช้ทั้งหมด (รวมผู้ใช้ย้อนหลัง)
-  const allUniqueSessions = {};
+  console.log('🔢 Calculating stats...');
+  console.log('📅 Today:', today);
+  console.log('📊 Total sessions:', sessions.length);
+  
+  // นับ Unique Users ทั้งหมด
+  const allUniqueUserIds = new Set();
+  const allUniqueUsersMap = new Map();
+  
   sessions.forEach(s => {
-    if (!allUniqueSessions[s.userId]) {
-      allUniqueSessions[s.userId] = s;
+    if (s.userId) {
+      allUniqueUserIds.add(s.userId);
+      if (!allUniqueUsersMap.has(s.userId)) {
+        allUniqueUsersMap.set(s.userId, s);
+      }
     }
   });
-  const totalUniqueUsers = Object.keys(allUniqueSessions).length;
-
-  // กระจายเพศ (จากผู้ใช้ทั้งหมด)
-  const genderCount = Object.values(allUniqueSessions).reduce((acc, s) => {
+  
+  // นับ Unique Users วันนี้
+  const todayUniqueUserIds = new Set();
+  sessions
+    .filter(s => s.date === today)
+    .forEach(s => {
+      if (s.userId) {
+        todayUniqueUserIds.add(s.userId);
+      }
+    });
+  
+  const totalUsers = allUniqueUserIds.size;
+  const todayUsers = todayUniqueUserIds.size;
+  
+  console.log('👥 Total unique users:', totalUsers);
+  console.log('🔥 Today unique users:', todayUsers);
+  
+  // กระจายเพศ
+  const genderCount = {};
+  allUniqueUsersMap.forEach(s => {
     const gender = s.gender || 'unknown';
-    acc[gender] = (acc[gender] || 0) + 1;
-    return acc;
-  }, {});
+    genderCount[gender] = (genderCount[gender] || 0) + 1;
+  });
 
-  // กระจายอายุ (จากผู้ใช้ทั้งหมด)
-  const ageGroups = Object.values(allUniqueSessions).reduce((acc, s) => {
-    if (!s.age) return acc;
-    const group = `${Math.floor(s.age / 10) * 10}-${Math.floor(s.age / 10) * 10 + 9}`;
-    acc[group] = (acc[group] || 0) + 1;
-    return acc;
-  }, {});
+  // กระจายอายุ
+  const ageGroups = {};
+  allUniqueUsersMap.forEach(s => {
+    if (s.age) {
+      const group = `${Math.floor(s.age / 10) * 10}-${Math.floor(s.age / 10) * 10 + 9}`;
+      ageGroups[group] = (ageGroups[group] || 0) + 1;
+    }
+  });
 
-  // ผู้ใช้ตามชั่วโมง (เฉพาะวันนี้)
-  const hourlyUsers = todaySessions.reduce((acc, s) => {
-    if (!s.sessionStart) return acc;
-    const hour = s.sessionStart.getHours();
-    acc[hour] = (acc[hour] || 0) + 1;
-    return acc;
-  }, {});
+  // ผู้ใช้ตามชั่วโมง (วันนี้)
+  const hourlyUsers = {};
+  sessions
+    .filter(s => s.date === today)
+    .forEach(s => {
+      if (s.sessionStart) {
+        const hour = s.sessionStart.getHours();
+        hourlyUsers[hour] = (hourlyUsers[hour] || 0) + 1;
+      }
+    });
 
-  // ประเภทอุปกรณ์ (จากผู้ใช้ทั้งหมด)
-  const deviceTypes = Object.values(allUniqueSessions).reduce((acc, s) => {
-    acc[s.deviceType] = (acc[s.deviceType] || 0) + 1;
-    return acc;
-  }, {});
-
-  console.log('📊 Stats calculated:', {
-    totalUsers: totalUniqueUsers,
-    todayUsers: uniqueUsersToday,
-    todaySessions: todaySessions.length
+  // ประเภทอุปกรณ์
+  const deviceTypes = {};
+  allUniqueUsersMap.forEach(s => {
+    deviceTypes[s.deviceType] = (deviceTypes[s.deviceType] || 0) + 1;
   });
 
   return {
-    totalUsers: totalUniqueUsers, // จำนวนผู้ใช้ทั้งหมด (รวมวันนี้)
-    todayUsers: uniqueUsersToday, // จำนวนผู้ใช้วันนี้
+    totalUsers,
+    todayUsers,
     genderDistribution: genderCount,
     ageDistribution: ageGroups,
     hourlyActivity: hourlyUsers,
-    deviceTypes: deviceTypes
+    deviceTypes
   };
 };
 
-// ลบข้อมูลเก่า (30 วัน)
+// ลบข้อมูลเก่า
 export const cleanupOldData = async () => {
   try {
     const thirtyDaysAgo = new Date();

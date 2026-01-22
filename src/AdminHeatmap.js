@@ -48,8 +48,6 @@ const AdminHeatmap = () => {
   // ⭐ เพิ่มหน้าทั้งหมดที่มีในเว็บ
   const pages = [
     { path: '/', name: 'Home / หน้าหลัก' },
-    { path: '/news', name: 'News Feed / ฟีดข่าว' },
-    { path: '/admin', name: 'Admin Panel / ผู้ดูแลระบบ' }
   ];
 
   return (
