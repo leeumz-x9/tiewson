@@ -93,7 +93,7 @@ const FullscreenNewsCarousel = ({ language }) => {
               {item.mediaType === 'video' ? (
                 <iframe
                   src={convertUrl(item.mediaUrl, 'video')}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   allow="autoplay"
                   title={getTitle(item)}
                 />
@@ -101,7 +101,7 @@ const FullscreenNewsCarousel = ({ language }) => {
                 <img 
                   src={convertUrl(item.mediaUrl, 'image')} 
                   alt={getTitle(item)}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
