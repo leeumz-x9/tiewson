@@ -1,109 +1,240 @@
-import React, { useEffect, useRef } from 'react';
-import { GraduationCap, BookOpen, CircleDollarSign, Gamepad2, Newspaper, ArrowRight, Sparkles } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { GraduationCap, BookOpen, FileText, Gamepad2, Newspaper, ArrowRight, Sparkles, X, CheckCircle2, UserCheck, Layers } from 'lucide-react';
 import NewsFeed from './NewsFeed.js'; 
 
 const GeneralInfoView = ({ language, onReset }) => {
   const idleTimer = useRef(null);
+  const [activeTab, setActiveTab] = useState(null); 
 
-  // 🕒 ระบบ Auto-Reset 30 วินาที
   useEffect(() => {
     const startTimer = () => {
       if (idleTimer.current) clearTimeout(idleTimer.current);
-      idleTimer.current = setTimeout(() => {
-        onReset(); // เรียกใช้ handleBackToHome ใน App.js
-      }, 30000); 
+      idleTimer.current = setTimeout(() => { onReset(); }, 30000); 
     };
-
-    // ดักจับการแตะหน้าจอเพื่อเริ่มนับเวลาใหม่
-    const activityEvents = ['mousemove', 'mousedown', 'touchstart', 'keypress', 'scroll', 'click'];
-    activityEvents.forEach(event => window.addEventListener(event, startTimer));
-    
-    startTimer(); // เริ่มนับถอยหลังทันทีที่เปิดหน้านี้
-
+    const events = ['mousedown', 'touchstart', 'click', 'scroll'];
+    events.forEach(e => window.addEventListener(e, startTimer));
+    startTimer();
     return () => {
       if (idleTimer.current) clearTimeout(idleTimer.current);
-      activityEvents.forEach(event => window.removeEventListener(event, startTimer));
+      events.forEach(e => window.removeEventListener(e, startTimer));
     };
   }, [onReset]);
 
+  // 📋 ข้อมูลแยก ปวช. / ปวส. และเนื้อหาตามต้นฉบับ
+  const detailContent = {
+    courses: {
+      th: { 
+        title: 'สาขาที่เปิดสอน',
+        categories: [
+          {
+            label: 'ระดับประกาศนียบัตรวิชาชีพ (ปวช.)',
+            items: [
+              { 
+                name: 'สาขางานยานยนต์', eng: 'Auto Mechanical Technology', 
+                desc: 'เทคโนโลยียานยนต์พัฒนาไปอย่างไม่มีที่สิ้นสุด การเรียนรู้กับ นวัตกรรมเหล่านี้ คือความท้าทายให้กับนักศึกษาช่างยนต์ สัมผัสกับเทคโนโลยี สัมผัสกับสมรรถนะอันแรงของยานยนต์ เติมเต็มความฝันของทุกๆ คน ปัจจุบันอุตสาหกรรมการผลิตรถยนต์ของประเทศไทย อยู่ในลำดับต้นๆ ของโลก การคาดการณ์ในอนาคตอันใกล้นี้จะมียอดการผลิตรถยนต์ถึง 3 ล้านคันต่อปี เป็นการยืนยันถึงอนาคตของผู้สำเร็จการศึกษาด้านช่างยนต์เรื่องการงานที่ดี ค่าตอบแทนที่สูงอย่างแน่นอน', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/auto.jpg' 
+              },
+              { 
+                name: 'สาขายานยนต์ไฟฟ้า', eng: 'Electric Vehicle', 
+                desc: 'เทคโนโลยียานยนต์พัฒนาไปอย่างไม่มีที่สิ้นสุด การเรียนรู้กับ นวัตกรรมเหล่านี้ คือความท้าทายให้กับนักศึกษาช่างยนต์ สัมผัสกับ เทคโนโลยี สัมผัสกับสมรรถนะอันแรงของยานยนต์ เติมเต็มความฝันของทุกๆ คน การคาดการณ์ในอนาคตอันใกล้นี้จะมียอดการผลิตรถยนต์ถึง 3 ล้านคันต่อปี เป็นการยืนยันถึงอนาคตของผู้สำเร็จการศึกษาด้านช่างยนต์เรื่องการงานที่ดี ค่าตอบแทนที่สูงอย่างแน่นอน', 
+                req: 'รับสมัครเฉพาะผู้จบ ปวช. โดยตรง', img: '/images/courses/ev.jpg' 
+              },
+              { 
+                name: 'สาขาช่างไฟฟ้ากำลัง', eng: 'Electrical Power Technology', 
+                desc: 'ไฟฟ้าเป็นสาขาวิชาที่เป็นรากฐานแห่งชีวิต ความเกี่ยวข้องกับการดำชีวิตประจำวัน และการใช้เทคโนโลยีต่างๆ เมื่อสำเร็จการศึกษาสามารถประกอบอาชีพส่วนตัวได้ เช่น อาชีพช่างติดตั้งไฟฟ้า อาชีพช่างเครื่องปรับอากาศและเครื่องทำความเย็น', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/electric.jpg' 
+              },
+              { 
+                name: 'สาขาช่างอิเล็กทรอนิกส์', eng: 'Electronics Technology', 
+                desc: '" อิเล็กทรอนิกส์ " เป็นสาขาที่ว่าด้วยการศึกษาทางด้านเทคโนโลยี ไม่ว่าจะเป็นเทคโนโลยีระบบภาพ เทคโนโลยีระบบเสียง เทคโนโลยีระบบคมนาคม เทคโนโลยีทางด้านงานระบบ ควบคุมอุตสาหกรรม เทคโนโลยีด้านหุ่นยนต์ โดยฉะนั้นให้ผู้เรียนศึกษาทั้งภาคทฤษฎี และภาคปฏิบัติ', 
+                req: 'รับสมัครผู้จบ ม.3 และ ปวช. หรือเทียบเท่า', img: '/images/courses/electronics.jpg' 
+              },
+              { 
+                name: 'สาขาช่างก่อสร้าง', eng: 'Construction Technology', 
+                desc: 'ให้ความรู้ด้านวิชาชีพ เกี่ยวกับเทคนิคการก่อสร้างในชั้นต่างๆ ตลอดจนได้เรียนรู้ ถึงนวัตกรรมใหม่ๆ ที่ได้นำมาประยุกต์ใช้ให้เกิดการงาน สามารถประกอบอาชีพได้ เช่น ผู้ควบคุมงานก่อสร้าง รับเหมาก่อสร้าง นายช่างโยธา ช่างเฟอร์นิเจอร์', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/construction.jpg' 
+              },
+              { 
+                name: 'สาขาสถาปัตยกรรม', eng: 'Architectural Technology', 
+                desc: 'บ้านหรือที่อยู่อาศัยเป็นของคู่กับมนุษย์ตั้งแต่อดีตกาล สถาปัตยกรรมจัดอยู่ในปัจจัย 4 ที่มนุษย์ต้องการ มนุษย์เกิดความต้องการบ้านเรือนที่สวยงาม มีพื้นที่ประโยชน์ใช้สอยที่เหมาะสมลงตัว การออกแบบ เขียนแบบก่อสร้าง การประมาณราคา การทำแบบจำลอง นักศึกษาจะได้รับการฝึกฝนจากอาจารย์ผู้เชี่ยวชาญ', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/architect.jpg' 
+              },
+              { 
+                name: 'สาขาคอมพิวเตอร์โปรแกรมเมอร์', eng: 'Computer Programmer', 
+                desc: 'คิดเป็น เขียนโค้ดได้ และสร้างสรรค์นวัตกรรม คือหัวใจของการเรียนรู้ เน้นให้ผู้เรียนมีทักษะการพัฒนาโปรแกรมและแอปพลิเคชันอย่างมืออาชีพ ตั้งแต่พื้นฐานไปจนถึงระดับสูง เรียนรู้ภาษา C, Java, Python การออกแบบเว็บไซต์ และ IoT', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/programmer.jpg' 
+              },
+              { 
+                name: 'สาขาการบัญชี', eng: 'Accounting', 
+                desc: 'ผลิตนักวิชาชีพบัญชีที่มีประสิทธิภาพ ทันต่อการเปลี่ยนแปลงของโลกธุรกิจ สามารถจัดทำบัญชีและรายงานผลทางด้านการเงินได้อย่างถูกต้องเป็นที่เชื่อถือแก่ผู้ร่วมลงทุน เจ้าหนี้ หรือธนาคาร', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/accounting.jpg' 
+              },
+              { 
+                name: 'สาขาการตลาด', eng: 'Marketing', 
+                desc: 'ในยุคของเทคโนโลยีที่มีการทำการตลาดบนอินเตอร์เน็ตหรือที่เรียกว่า E-Commerce ตลาดในปัจจุบันมีความต้องการบุคลากรด้านการตลาดและการขายอย่างมาก การเรียนการสอนด้านไอทีและคอมพิวเตอร์ จะทำให้นักศึกษาก้าวไปเป็นนักการตลาดมืออาชีพ', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/marketing.jpg' 
+              },
+              { 
+                name: 'สาขาธุรกิจดิจิทัล', eng: 'Digital Business Technology', 
+                desc: 'เทคโนโลยีด้านคอมพิวเตอร์ได้เข้ามามีบทบาทในชีวิตประจำวัน การจัดทำธุรกิจและการประกอบอาชีพต่างๆ มีความเกี่ยวข้องกับระบบสารสนเทศทั้งสิ้น จบแล้วสามารถประกอบอาชีพเจ้าหน้าที่คอมพิวเตอร์ โปรแกรมเมอร์ หรือเว็บมาสเตอร์', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/digital.jpg' 
+              },
+              { 
+                name: 'สาขาการท่องเที่ยว / การโรงแรม', eng: 'Tourism & Hotel', 
+                desc: 'ผสมผสานระหว่างศาสตร์กับศิลป์ เรียนรู้การใช้ศิลปะการพูด เพื่อให้ความบันเทิงกับนักท่องเที่ยว มีโอกาสได้สัมผัสกับประสบการณ์ที่หลากหลาย พบปะผู้คนมากมาย ผลักดันให้การท่องเที่ยวไทยก้าวไกลสู่ประชาคมโลก', 
+                req: 'รับสมัครผู้จบ ม.3 ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/tourism.jpg' 
+              }
+            ]
+          },
+          {
+            label: 'ระดับประกาศนียบัตรวิชาชีพชั้นสูง (ปวส.)',
+            items: [
+              { 
+                name: 'สาขาเทคโนโลยีสารสนเทศ', eng: 'Information Technology', 
+                desc: 'การคิดและทำอย่างสร้างสรรค์ คือแรงผลักดันที่เราใช้เป็นแนวทางในการผลิตคอมพิวเตอร์ เพิ่มพูนทักษะในด้านซ่อมบำรุงรักษาคอมพิวเตอร์ทั้งซอฟต์แวร์และฮาร์ดแวร์ ระบบเครือข่ายอินเตอร์เน็ต ธุรกิจผลิตซอฟต์แวร์ และงานมัลติมีเดีย', 
+                req: 'รับสมัครผู้จบ ปวช. และ ม.6 หรือเทียบเท่า', img: '/images/courses/it.jpg' 
+              }
+            ]
+          }
+        ]
+      }
+    },
+    fees: {
+      th: { 
+        title: 'เอกสารการสมัครเรียน', 
+        items: [
+          'สำเนาระเบียนแสดงผลการเรียน (ปพ.1)',
+          'สำเนาทะเบียนบ้าน (นักศึกษา, บิดา, มารดา)',
+          'สำเนาบัตรประชาชน (นักศึกษา, บิดา, มารดา)',
+          'รูปถ่ายหน้าตรงขนาด 1 นิ้ว จำนวน 3 รูป'
+        ],
+        note: 'ค่าเทอมเริ่มต้นเพียง 5,xxx บาท (สามารถแบ่งชำระได้ 3 งวด)'
+      }
+    }
+  };
+
   const menuItems = [
-    { id: 'courses', icon: <BookOpen />, label: { th: 'สาขาที่เปิดสอน', en: 'Courses', zh: '专业', ko: '학과' }, color: 'bg-blue-600' },
-    { id: 'fees', icon: <CircleDollarSign />, label: { th: 'ค่าเทอม/ผ่อนชำระ', en: 'Tuition Fees', zh: '学费', ko: '학비' }, color: 'bg-green-600' },
-    { id: 'scholarship', icon: <GraduationCap />, label: { th: 'ทุนการศึกษา', en: 'Scholarships', zh: '奖学金', ko: '장학금' }, color: 'bg-purple-600' },
+    { id: 'courses', icon: <BookOpen />, label: { th: 'สาขาที่เปิดสอน', en: 'Courses' }, color: 'bg-blue-600' },
+    { id: 'fees', icon: <FileText />, label: { th: 'เอกสารการสมัคร', en: 'Admission' }, color: 'bg-emerald-600' },
+    { id: 'scholarship', icon: <GraduationCap />, label: { th: 'ทุนการศึกษา', en: 'Scholarships' }, color: 'bg-indigo-600' },
   ];
 
-  const content = {
-    th: { welcome: 'ยินดีต้อนรับสู่โปลิฯ', sub: 'เลือกหัวข้อที่สนใจได้เลยเจ้า', game: 'สนุกกับน้องทิวสน', news: 'ข่าวสารและกิจกรรม', start: 'เริ่มเล่นเกม' },
-    en: { welcome: 'Welcome to Poly', sub: 'Please select a topic', game: 'Play with Tiew-Son', news: 'News & Events', start: 'Start Game' },
-    zh: { welcome: '欢迎来到理工学院', sub: '请选择一个主题', game: '与 Tiew-Son 一起玩', news: '新闻与活动', start: '开始游戏' },
-    ko: { welcome: '폴리테크닉에 오신 것을 환영합니다', sub: '주제를 선택해 주세요', game: '티우손과 놀기', news: '뉴스 및 이벤트', start: '게임 시작' }
-  }[language] || { welcome: 'ยินดีต้อนรับสู่โปลิฯ', sub: 'เลือกหัวข้อที่สนใจได้เลยเจ้า', game: 'สนุกกับน้องทิวสน', news: 'ข่าวสารและกิจกรรม', start: 'เริ่มเล่นเกม' };
-
   return (
-    <div className="pt-32 px-6 md:px-10 pb-20 max-w-7xl mx-auto h-screen overflow-y-auto custom-scrollbar animate-in fade-in duration-700">
+    <div className="pt-32 px-6 md:px-10 pb-20 max-w-7xl mx-auto h-screen overflow-y-auto custom-scrollbar">
       
-      {/* 🏥 1. ส่วนหัวข้อ */}
-      <div className="text-center mb-12">
-        <div className="inline-block px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-sm font-bold mb-4 shadow-sm border border-blue-100">
-          Lanna Polytechnic Chiang Mai
+      {/* 🏥 Header */}
+      <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom duration-1000">
+        <div className="inline-flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-black mb-6 border border-blue-100 uppercase tracking-widest">
+          <Sparkles size={16} /> Lanna Polytechnic Chiangmai <Sparkles size={16} />
         </div>
-        <h1 className="text-5xl font-black text-slate-800 mb-4 tracking-tight">{content.welcome}</h1>
-        <p className="text-slate-500 text-xl font-medium">{content.sub}</p>
+        <h1 className="text-6xl font-black text-slate-900 mb-6 tracking-tighter">
+          {language === 'th' ? 'ก้าวสู่อนาคตที่โปลิฯ' : 'Future Starts Here'}
+        </h1>
+        <p className="text-slate-500 text-2xl font-medium">วิทยาลัยเทคโนโลยีโปลิเทคนิคลานนา เชียงใหม่</p>
       </div>
 
-      {/* 📋 2. เมนูข้อมูลหลัก (ด้านบน) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+      {/* 📋 Menu Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-20">
         {menuItems.map((item) => (
-          <div key={item.id} className="bg-white/90 backdrop-blur-md p-10 rounded-[2.5rem] shadow-xl border border-white hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100 hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-            <div className={`${item.color} w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-white mb-8 group-hover:rotate-12 transition-transform shadow-lg`}>
-              {React.cloneElement(item.icon, { size: 36 })}
+          <div key={item.id} onClick={() => setActiveTab(item.id)} className="group bg-white/80 backdrop-blur-sm p-12 rounded-[4rem] shadow-2xl border border-white hover:border-blue-300 hover:-translate-y-4 transition-all duration-500 cursor-pointer">
+            <div className={`${item.color} w-24 h-24 rounded-[2.5rem] flex items-center justify-center text-white mb-10 group-hover:rotate-12 transition-transform shadow-xl`}>
+              {React.cloneElement(item.icon, { size: 48 })}
             </div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2 leading-tight">
-              {item.label[language] || item.label.th}
-            </h3>
-            <div className="flex items-center gap-2 text-blue-600 font-bold text-sm mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span>{language === 'th' ? 'คลิกเพื่อดูรายละเอียด' : 'Click for details'}</span> <ArrowRight size={16} />
+            <h3 className="text-3xl font-black text-slate-800 mb-4">{item.label[language] || item.label.th}</h3>
+            <div className="flex items-center gap-2 text-blue-600 font-bold text-lg opacity-0 group-hover:opacity-100 transition-all">
+              <span>กดดูข้อมูล</span> <ArrowRight size={20} />
             </div>
           </div>
         ))}
       </div>
 
-      {/* 🎮 3. แบนเนอร์เกม (ตรงกลาง) */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-[3rem] p-10 text-white flex flex-col md:flex-row items-center justify-between shadow-2xl relative overflow-hidden mb-16 border border-slate-700">
-        <div className="absolute top-0 right-0 p-10 opacity-10 pointer-events-none"><Sparkles size={120} /></div>
-        
-        <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-          <div className="w-24 h-24 bg-gradient-to-br from-orange-400 to-pink-500 rounded-3xl flex items-center justify-center shadow-2xl animate-pulse">
-            <Gamepad2 size={48} />
-          </div>
-          <div className="text-center md:text-left">
-            <h2 className="text-3xl font-black mb-2">{content.game}</h2>
-            <p className="text-slate-300 text-lg">{language === 'th' ? 'ร่วมสนุกตอบคำถาม ลุ้นรับของที่ระลึก' : 'Join our quiz and win souvenirs!'}</p>
-          </div>
+      {/* 🎮 Game Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-[4rem] p-12 text-white flex flex-col md:flex-row items-center justify-between shadow-2xl relative overflow-hidden mb-20">
+        <div className="relative z-10 flex items-center gap-10">
+          <div className="w-28 h-28 bg-orange-500 rounded-[2.5rem] flex items-center justify-center animate-bounce shadow-2xl"><Gamepad2 size={60} /></div>
+          <div className="text-left text-3xl font-black italic uppercase tracking-tighter">Fun with Tiew-Son</div>
         </div>
-
-        <button className="relative z-10 mt-8 md:mt-0 bg-white text-slate-900 px-12 py-5 rounded-2xl font-black text-2xl hover:bg-orange-400 hover:text-white transition-all shadow-xl flex items-center gap-3">
-          {content.start}
-        </button>
-        <img src="/tiewson.png" className="absolute -right-12 -bottom-12 w-64 opacity-20 rotate-12 pointer-events-none" alt="" />
+        <button className="relative z-10 mt-10 md:mt-0 bg-white text-slate-900 px-16 py-6 rounded-3xl font-black text-3xl hover:scale-110 transition-transform">เริ่มเล่นเกม</button>
       </div>
 
-      {/* 📰 4. News Feed (ด้านล่าง) */}
-      <div className="mb-12">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg">
-            <Newspaper size={28} />
+      {/* 📰 News Feed */}
+      <div className="mb-20">
+        <h2 className="text-4xl font-black text-slate-800 mb-8 flex items-center gap-3"><Newspaper /> ข่าวสารและกิจกรรม</h2>
+        <div className="bg-white/40 backdrop-blur-md rounded-[3.5rem] p-8 border border-white shadow-xl">
+            <NewsFeed language={language} isMinimal={true} />
+        </div>
+      </div>
+
+      {/* 🖼️ Modal Popup - ส่วนที่แยก ปวช. / ปวส. */}
+      {activeTab && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setActiveTab(null)}></div>
+          <div className="relative bg-white w-full max-w-6xl max-h-[90vh] rounded-[4rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in duration-300">
+            
+            <div className="p-10 border-b flex justify-between items-center bg-slate-50/50">
+              <h2 className="text-5xl font-black text-slate-800">
+                {detailContent[activeTab]?.th?.title || 'ข้อมูล'}
+              </h2>
+              <button onClick={() => setActiveTab(null)} className="p-5 bg-white shadow-lg rounded-full hover:bg-red-50 hover:text-red-500 transition-all">
+                <X size={40} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-10 md:p-14 custom-scrollbar">
+              {activeTab === 'courses' ? (
+                <div className="space-y-16">
+                  {detailContent.courses.th.categories.map((cat, cIdx) => (
+                    <div key={cIdx}>
+                      <h3 className="text-4xl font-black text-blue-900 mb-10 flex items-center gap-4">
+                        <Layers className="text-blue-500" size={40} /> {cat.label}
+                      </h3>
+                      <div className="grid grid-cols-1 gap-10">
+                        {cat.items.map((item, idx) => (
+                          <div key={idx} className="flex flex-col md:flex-row gap-8 bg-slate-50 rounded-[3rem] overflow-hidden border border-slate-100 shadow-sm">
+                            {/* รูปสาขา */}
+                            <div className="md:w-1/3 h-64 md:h-auto bg-slate-200">
+                              <img 
+                                src={item.img} 
+                                alt={item.name} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.src = `https://via.placeholder.com/600x400?text=${item.name}`; }} 
+                              />
+                            </div>
+                            {/* เนื้อหาละเอียด */}
+                            <div className="md:w-2/3 p-10">
+                              <div className="flex flex-wrap items-center gap-4 mb-4">
+                                <h4 className="text-3xl font-black text-slate-800">{item.name}</h4>
+                                <span className="bg-blue-100 text-blue-700 px-5 py-2 rounded-full text-base font-bold flex items-center gap-2">
+                                  <UserCheck size={20} /> {item.req}
+                                </span>
+                              </div>
+                              <p className="text-blue-500 font-bold mb-4 uppercase tracking-wider">{item.eng}</p>
+                              <p className="text-slate-600 text-xl leading-relaxed mb-6">{item.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-8">
+                   {detailContent[activeTab]?.th?.items?.map((li, i) => (
+                     <div key={i} className="flex items-center gap-6 bg-emerald-50 p-8 rounded-3xl text-3xl font-black text-emerald-900 border-l-8 border-emerald-500">
+                       <CheckCircle2 size={40} className="text-emerald-500" /> {li}
+                     </div>
+                   ))}
+                   {detailContent[activeTab]?.th?.note && (
+                     <div className="mt-10 p-10 bg-orange-50 rounded-[2.5rem] border border-orange-200 text-orange-700 text-2xl font-bold">
+                       ⚠️ หมายเหตุ: {detailContent[activeTab].th.note}
+                     </div>
+                   )}
+                </div>
+              )}
+            </div>
           </div>
-          <h2 className="text-4xl font-black text-slate-800 tracking-tight">{content.news}</h2>
         </div>
-        <div className="bg-white/40 backdrop-blur-md rounded-[3.5rem] p-8 border border-white/60 shadow-xl overflow-hidden">
-           <NewsFeed language={language} isMinimal={true} />
-        </div>
-      </div>
-      
-      <div className="text-center text-slate-400 font-medium pb-10 uppercase tracking-widest text-sm">
-        © Lanna Polytechnic Chiangmai
-      </div>
+      )}
     </div>
   );
 };
