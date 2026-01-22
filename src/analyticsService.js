@@ -1,4 +1,4 @@
-// src/analyticsService.js
+// src/analyticsService.js (แก้ไขให้นับผู้ใช้ถูกต้อง)
 import { getFirestore, collection, addDoc, query, where, onSnapshot, Timestamp, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
@@ -27,7 +27,7 @@ export const trackClick = async (elementId, pageUrl, coordinates) => {
       x: coordinates.x,
       y: coordinates.y,
       timestamp: Timestamp.now(),
-      date: getTodayDate(), // เพิ่มวันที่
+      date: getTodayDate(),
       userId: userId,
       screenWidth: window.innerWidth,
       screenHeight: window.innerHeight
@@ -61,14 +61,13 @@ export const trackUserSession = async (userData) => {
       gender: userData.gender || null,
       age: userData.age ? parseInt(userData.age) : null,
       sessionStart: Timestamp.now(),
-      date: today, // เพิ่มวันที่
+      date: today,
       deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
       browser: navigator.userAgent
     };
 
     await addDoc(collection(db, 'user_sessions'), sessionData);
     
-    // บันทึกวันที่ล่าสุดที่สร้าง session
     localStorage.setItem('lastSessionDate', today);
     
     console.log('✅ Session tracked:', sessionData);
@@ -83,7 +82,6 @@ export const getHeatmapData = (pageUrl, callback, dateFilter = 'today') => {
     let q;
     
     if (dateFilter === 'today') {
-      // ดูเฉพาะวันนี้
       const today = getTodayDate();
       q = query(
         collection(db, 'heatmap_clicks'),
@@ -91,7 +89,6 @@ export const getHeatmapData = (pageUrl, callback, dateFilter = 'today') => {
         where('date', '==', today)
       );
     } else if (dateFilter === 'all') {
-      // ดูทั้งหมด
       q = query(
         collection(db, 'heatmap_clicks'),
         where('pageUrl', '==', pageUrl)
@@ -103,7 +100,7 @@ export const getHeatmapData = (pageUrl, callback, dateFilter = 'today') => {
       snapshot.forEach((doc) => {
         clicks.push({ id: doc.id, ...doc.data() });
       });
-      console.log(`📊 Heatmap loaded (${dateFilter}):`, clicks.length, 'clicks');
+      console.log(`📊 Heatmap loaded (${dateFilter}):`, clicks.length, 'clicks for', pageUrl);
       callback(clicks);
     });
   } catch (error) {
@@ -145,54 +142,65 @@ export const getDashboardStats = (callback) => {
   }
 };
 
-// คำนวณสถิติ
+// ⭐ แก้ไขฟังก์ชันนี้ - คำนวณสถิติให้ถูกต้อง
 const calculateStats = (sessions) => {
   const today = getTodayDate();
   
   // นับ Unique Users ตามวัน (ไม่นับซ้ำ)
-  const uniqueUsersToday = new Set(
-    sessions
-      .filter(s => s.date === today)
-      .map(s => s.userId)
-  ).size;
+  const todaySessions = sessions.filter(s => s.date === today);
+  const uniqueUsersToday = new Set(todaySessions.map(s => s.userId)).size;
 
-  // นับผู้ใช้ทั้งหมด (Unique Users ทั้งหมด)
-  const totalUniqueUsers = new Set(
-    sessions.map(s => s.userId)
-  ).size;
+  // นับผู้ใช้ทั้งหมด (รวมผู้ใช้ย้อนหลัง)
+  const allUniqueSessions = {};
+  sessions.forEach(s => {
+    if (!allUniqueSessions[s.userId]) {
+      allUniqueSessions[s.userId] = s;
+    }
+  });
+  const totalUniqueUsers = Object.keys(allUniqueSessions).length;
 
-  const genderCount = sessions.reduce((acc, s) => {
+  // กระจายเพศ (จากผู้ใช้ทั้งหมด)
+  const genderCount = Object.values(allUniqueSessions).reduce((acc, s) => {
     const gender = s.gender || 'unknown';
     acc[gender] = (acc[gender] || 0) + 1;
     return acc;
   }, {});
 
-  const ageGroups = sessions.reduce((acc, s) => {
+  // กระจายอายุ (จากผู้ใช้ทั้งหมด)
+  const ageGroups = Object.values(allUniqueSessions).reduce((acc, s) => {
     if (!s.age) return acc;
     const group = `${Math.floor(s.age / 10) * 10}-${Math.floor(s.age / 10) * 10 + 9}`;
     acc[group] = (acc[group] || 0) + 1;
     return acc;
   }, {});
 
-  const hourlyUsers = sessions
-    .filter(s => s.date === today) // เฉพาะวันนี้
-    .reduce((acc, s) => {
-      if (!s.sessionStart) return acc;
-      const hour = s.sessionStart.getHours();
-      acc[hour] = (acc[hour] || 0) + 1;
-      return acc;
-    }, {});
+  // ผู้ใช้ตามชั่วโมง (เฉพาะวันนี้)
+  const hourlyUsers = todaySessions.reduce((acc, s) => {
+    if (!s.sessionStart) return acc;
+    const hour = s.sessionStart.getHours();
+    acc[hour] = (acc[hour] || 0) + 1;
+    return acc;
+  }, {});
+
+  // ประเภทอุปกรณ์ (จากผู้ใช้ทั้งหมด)
+  const deviceTypes = Object.values(allUniqueSessions).reduce((acc, s) => {
+    acc[s.deviceType] = (acc[s.deviceType] || 0) + 1;
+    return acc;
+  }, {});
+
+  console.log('📊 Stats calculated:', {
+    totalUsers: totalUniqueUsers,
+    todayUsers: uniqueUsersToday,
+    todaySessions: todaySessions.length
+  });
 
   return {
-    totalUsers: totalUniqueUsers, // จำนวนผู้ใช้ทั้งหมด (Unique)
-    todayUsers: uniqueUsersToday, // จำนวนผู้ใช้วันนี้ (Unique)
+    totalUsers: totalUniqueUsers, // จำนวนผู้ใช้ทั้งหมด (รวมวันนี้)
+    todayUsers: uniqueUsersToday, // จำนวนผู้ใช้วันนี้
     genderDistribution: genderCount,
     ageDistribution: ageGroups,
     hourlyActivity: hourlyUsers,
-    deviceTypes: sessions.reduce((acc, s) => {
-      acc[s.deviceType] = (acc[s.deviceType] || 0) + 1;
-      return acc;
-    }, {})
+    deviceTypes: deviceTypes
   };
 };
 
@@ -203,7 +211,6 @@ export const cleanupOldData = async () => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
 
-    // ลบ clicks เก่า
     const clicksQuery = query(
       collection(db, 'heatmap_clicks'),
       where('date', '<', cutoffDate)
@@ -216,7 +223,6 @@ export const cleanupOldData = async () => {
       deletedClicks++;
     }
 
-    // ลบ sessions เก่า
     const sessionsQuery = query(
       collection(db, 'user_sessions'),
       where('date', '<', cutoffDate)

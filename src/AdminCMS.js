@@ -1,17 +1,17 @@
-// AdminCMS.js (แก้ไขเพิ่ม Tabs)
+// AdminCMS.js (ฉบับสมบูรณ์ - รวมทุกฟีเจอร์)
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebaseConfig';
 import { Upload, Trash2, Image as ImageIcon, Video, Plus, X } from 'lucide-react';
 
-// Import new components
+// Import Dashboard และ Heatmap
 import AdminDashboard from './AdminDashboard';
 import AdminHeatmap from './AdminHeatmap';
 
 const AdminCMS = () => {
-    // เพิ่ม state สำหรับ active tab
-    const [activeTab, setActiveTab] = useState('news'); // 'news', 'heatmap', 'dashboard'
+    // Tab Management
+    const [activeTab, setActiveTab] = useState('news');
     
     const [newsItems, setNewsItems] = useState([]);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -149,7 +149,6 @@ const AdminCMS = () => {
         }
     };
 
-    // Render content based on active tab
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
@@ -201,7 +200,7 @@ const AdminCMS = () => {
                 </div>
             )}
 
-            {/* Add News Form Modal */}
+            {/* Add News Form Modal - ฟอร์มครบทุกฟิลด์ */}
             {isFormOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6 overflow-y-auto">
                     <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -212,7 +211,9 @@ const AdminCMS = () => {
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
+
                             <form onSubmit={handleSubmit} className="space-y-6">
+                                {/* Instructions */}
                                 <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border border-green-200">
                                     <div className="flex items-start gap-3">
                                         <div className="text-2xl">📁</div>
@@ -231,6 +232,7 @@ const AdminCMS = () => {
                                     </div>
                                 </div>
 
+                                {/* Media Type */}
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">ประเภทสื่อ *</label>
                                     <div className="flex gap-4">
@@ -261,6 +263,7 @@ const AdminCMS = () => {
                                     </div>
                                 </div>
 
+                                {/* Media URL */}
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                                         Google Drive URL *
@@ -284,6 +287,29 @@ const AdminCMS = () => {
                                     />
                                 </div>
 
+                                {/* Preview */}
+                                {previewUrl && (
+                                    <div className="border-2 border-gray-200 rounded-lg p-4">
+                                        <p className="text-sm font-semibold text-gray-700 mb-2">ตัวอย่าง:</p>
+                                        {formData.mediaType === 'video' ? (
+                                            <iframe
+                                                src={previewUrl}
+                                                className="w-full h-64 rounded"
+                                                allow="autoplay"
+                                                title="Video preview"
+                                            ></iframe>
+                                        ) : (
+                                            <img
+                                                src={previewUrl}
+                                                alt="Preview"
+                                                className="max-h-64 mx-auto rounded"
+                                                referrerPolicy="no-referrer"
+                                            />
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Titles - 4 ภาษา */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">หัวข้อ (ไทย) *</label>
@@ -304,8 +330,103 @@ const AdminCMS = () => {
                                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">标题 (中文)</label>
+                                        <input
+                                            type="text"
+                                            value={formData.titleZh}
+                                            onChange={(e) => setFormData({ ...formData, titleZh: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">제목 (한국어)</label>
+                                        <input
+                                            type="text"
+                                            value={formData.titleKo}
+                                            onChange={(e) => setFormData({ ...formData, titleKo: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
                                 </div>
 
+                                {/* Descriptions - 2 ภาษา */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">รายละเอียด (ไทย)</label>
+                                        <textarea
+                                            value={formData.descriptionTh}
+                                            onChange={(e) => setFormData({ ...formData, descriptionTh: e.target.value })}
+                                            rows="3"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Description (English)</label>
+                                        <textarea
+                                            value={formData.descriptionEn}
+                                            onChange={(e) => setFormData({ ...formData, descriptionEn: e.target.value })}
+                                            rows="3"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">描述 (中文)</label>
+                                        <textarea
+                                            value={formData.descriptionZh}
+                                            onChange={(e) => setFormData({ ...formData, descriptionZh: e.target.value })}
+                                            rows="3"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">설명 (한국어)</label>
+                                        <textarea
+                                            value={formData.descriptionKo}
+                                            onChange={(e) => setFormData({ ...formData, descriptionKo: e.target.value })}
+                                            rows="3"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Target Audience */}
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">กลุ่มเป้าหมาย (เพศ)</label>
+                                        <select
+                                            value={formData.targetGender}
+                                            onChange={(e) => setFormData({ ...formData, targetGender: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        >
+                                            <option value="all">ทั้งหมด</option>
+                                            <option value="male">ชาย</option>
+                                            <option value="female">หญิง</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">อายุขั้นต่ำ</label>
+                                        <input
+                                            type="number"
+                                            value={formData.targetAgeMin}
+                                            onChange={(e) => setFormData({ ...formData, targetAgeMin: e.target.value })}
+                                            placeholder="เช่น 15"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">อายุสูงสุด</label>
+                                        <input
+                                            type="number"
+                                            value={formData.targetAgeMax}
+                                            onChange={(e) => setFormData({ ...formData, targetAgeMax: e.target.value })}
+                                            placeholder="เช่น 25"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Submit */}
                                 <div className="flex gap-4">
                                     <button
                                         type="submit"
@@ -385,7 +506,7 @@ const AdminCMS = () => {
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="flex items-center justify-between py-4">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-800">ระบบจัดการข่าวสาร Admin</h1>
+                            <h1 className="text-2xl font-bold text-gray-800">ระบบจัดการ Admin</h1>
                             <p className="text-sm text-gray-600">วิทยาลัยเทคโนโลยีโปลิเทคนิคลานนา</p>
                         </div>
                     </div>

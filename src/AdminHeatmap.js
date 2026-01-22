@@ -1,20 +1,23 @@
-// src/AdminHeatmap.js
+// src/AdminHeatmap.js (เพิ่มหน้าให้ครบ)
 import React, { useState, useEffect, useRef } from 'react';
 import { getHeatmapData } from './analyticsService';
 
 const AdminHeatmap = () => {
   const [clicks, setClicks] = useState([]);
   const [selectedPage, setSelectedPage] = useState('/');
+  const [dateFilter, setDateFilter] = useState('today');
   const [intensity, setIntensity] = useState(50);
   const canvasRef = useRef(null);
 
   useEffect(() => {
+    console.log('🔍 Loading heatmap for:', selectedPage, 'Filter:', dateFilter);
     const unsubscribe = getHeatmapData(selectedPage, (data) => {
+      console.log('📊 Received', data.length, 'clicks for', selectedPage);
       setClicks(data);
-    });
+    }, dateFilter);
 
     return () => unsubscribe();
-  }, [selectedPage]);
+  }, [selectedPage, dateFilter]);
 
   useEffect(() => {
     if (!canvasRef.current || clicks.length === 0) return;
@@ -42,10 +45,11 @@ const AdminHeatmap = () => {
     });
   }, [clicks, intensity]);
 
+  // ⭐ เพิ่มหน้าทั้งหมดที่มีในเว็บ
   const pages = [
-    { path: '/', name: 'Home' },
-    { path: '/news', name: 'News Feed' },
-    { path: '/admin', name: 'Admin Panel' }
+    { path: '/', name: 'Home / หน้าหลัก' },
+    { path: '/news', name: 'News Feed / ฟีดข่าว' },
+    { path: '/admin', name: 'Admin Panel / ผู้ดูแลระบบ' }
   ];
 
   return (
@@ -53,7 +57,7 @@ const AdminHeatmap = () => {
       <h1 className="text-3xl font-bold text-gray-800 mb-6">🗺️ Heatmap Analytics</h1>
 
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               เลือกหน้า:
@@ -68,6 +72,20 @@ const AdminHeatmap = () => {
                   {page.name}
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              ช่วงเวลา:
+            </label>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+            >
+              <option value="today">วันนี้</option>
+              <option value="all">ทั้งหมด</option>
             </select>
           </div>
 
@@ -89,7 +107,9 @@ const AdminHeatmap = () => {
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-green-50 p-4 rounded-lg text-center">
             <div className="text-3xl font-bold text-green-600">{clicks.length}</div>
-            <div className="text-sm text-gray-600 mt-1">Total Clicks</div>
+            <div className="text-sm text-gray-600 mt-1">
+              {dateFilter === 'today' ? 'คลิกวันนี้' : 'คลิกทั้งหมด'}
+            </div>
           </div>
 
           <div className="bg-blue-50 p-4 rounded-lg text-center">
@@ -114,7 +134,12 @@ const AdminHeatmap = () => {
           <div className="absolute inset-0 flex items-center justify-center text-gray-400">
             <div className="text-center">
               <div className="text-6xl mb-4">📭</div>
-              <div>ยังไม่มีข้อมูลการคลิกในหน้านี้</div>
+              <div className="text-lg font-semibold mb-2">
+                ยังไม่มีข้อมูลการคลิก{dateFilter === 'today' ? 'วันนี้' : ''}
+              </div>
+              <div className="text-sm">
+                หน้า: {pages.find(p => p.path === selectedPage)?.name}
+              </div>
             </div>
           </div>
         )}
