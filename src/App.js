@@ -1,17 +1,16 @@
-// App.js
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, Shield } from 'lucide-react'; // เพิ่ม Shield สำหรับหน้าปฏิเสธ
 import PDPAOverlay from './PDPAOverlay.js';
 import FullscreenNewsCarousel from './FullscreenNewsCarousel.js';
 import FaceAnalyzerPopup from './FaceAnalyzerPopup.js';
 import PersonalizedNewsView from './PersonalizedNewsView.js';
 import TiewSonAI from './TiewSonAI.js';
 import AdminCMS from './AdminCMS.js';
-// ⭐ เพิ่มบรรทัดนี้
 import HeatmapTracker from './HeatmapTracker.js';
 
 function App() {
   const [pdpaAccepted, setPdpaAccepted] = useState(false);
+  const [pdpaDeclined, setPdpaDeclined] = useState(false); // ⭐ เพิ่ม state สำหรับกรณีไม่ยอมรับ
   const [language, setLanguage] = useState('th');
   const [userProfile, setUserProfile] = useState(null);
   const [showFaceAnalyzer, setShowFaceAnalyzer] = useState(false);
@@ -28,13 +27,18 @@ function App() {
       }
       return newCount;
     });
-
     if (window.logoTimer) clearTimeout(window.logoTimer);
     window.logoTimer = setTimeout(() => setLogoClickCount(0), 2000);
   };
 
   const handlePDPAAccept = () => {
     setPdpaAccepted(true);
+    setPdpaDeclined(false);
+  };
+
+  // ⭐ เพิ่มฟังก์ชันรองรับการกดไม่ยอมรับ
+  const handlePDPADecline = () => {
+    setPdpaDeclined(true);
   };
 
   const handleFaceDetected = () => {
@@ -58,7 +62,6 @@ function App() {
         setShowAdmin(!showAdmin);
       }
     };
-
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showAdmin]);
@@ -77,24 +80,51 @@ function App() {
     );
   }
 
+  // ⭐ กรณีไม่ยอมรับ PDPA แสดงหน้าว่างๆ ที่สามารถย้อนกลับได้
+  if (pdpaDeclined) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+        <Shield className="w-16 h-16 text-gray-300 mb-4" />
+        <h2 className="text-xl font-bold text-gray-800 mb-2">
+          {language === 'th' ? 'การเข้าถึงถูกปฏิเสธ' : 'Access Denied'}
+        </h2>
+        <p className="text-gray-500 mb-6 max-w-sm text-sm">
+          {language === 'th' 
+            ? 'ขออภัย ระบบจำเป็นต้องใช้กล้องเพื่อทำงาน หากท่านไม่ยอมรับเงื่อนไข ระบบไม่สามารถให้บริการได้' 
+            : 'Sorry, the system cannot function without your consent to use basic data analysis.'}
+        </p>
+        <button 
+          onClick={() => setPdpaDeclined(false)} 
+          className="text-blue-600 font-bold hover:underline"
+        >
+          {language === 'th' ? 'กลับไปหน้ายอมรับ' : 'Go back to consent page'}
+        </button>
+      </div>
+    );
+  }
+
+  // ⭐ แสดงหน้า PDPAOverlay พร้อมส่ง props เพิ่มเติม
   if (!pdpaAccepted) {
-    return <PDPAOverlay onAccept={handlePDPAAccept} language={language} />;
+    return (
+      <PDPAOverlay 
+        onAccept={handlePDPAAccept} 
+        onDecline={handlePDPADecline} 
+        language={language} 
+        setLanguage={setLanguage} 
+      />
+    );
   }
 
   return (
-    // ⭐ Wrap ทุกอย่างด้วย HeatmapTracker
     <HeatmapTracker enabled={true}>
       <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 overflow-hidden">
-        {/* Decorative Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-teal-400/20 to-blue-400/20 rounded-full blur-3xl transform -translate-x-1/3 translate-y-1/3"></div>
           <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-gradient-to-br from-indigo-400/10 to-purple-400/10 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
         </div>
 
-        {/* Content Wrapper */}
         <div className="relative z-10">
-          {/* Logo - วางไว้นอก component */}
           <div 
             className="fixed top-8 left-8 z-50 cursor-pointer select-none"
             onClick={handleLogoClick}
@@ -106,7 +136,6 @@ function App() {
             />
           </div>
 
-          {/* Language Selector - Professional Style */}
           <div className="fixed top-8 right-8 z-30 flex gap-2 bg-white/80 backdrop-blur-md p-2.5 rounded-2xl shadow-xl border border-white/50">
             {['th', 'en', 'zh', 'ko'].map(lang => (
               <button
@@ -123,7 +152,6 @@ function App() {
             ))}
           </div>
 
-          {/* Main Content */}
           {mode === 'carousel' ? (
             <FullscreenNewsCarousel 
               language={language}
@@ -137,7 +165,6 @@ function App() {
             />
           )}
 
-          {/* Face Analyzer Popup */}
           {showFaceAnalyzer && (
             <FaceAnalyzerPopup
               onClose={() => setShowFaceAnalyzer(false)}
@@ -146,10 +173,8 @@ function App() {
             />
           )}
 
-          {/* Tiew Son AI - Always floating */}
           <TiewSonAI language={language} onLanguageChange={setLanguage} />
 
-          {/* Trigger Button for Face Detection - Professional Style */}
           {mode === 'carousel' && (
             <button
               onClick={handleFaceDetected}
