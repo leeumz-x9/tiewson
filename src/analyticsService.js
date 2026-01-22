@@ -2,6 +2,19 @@
 import { getFirestore, collection, addDoc, query, where, onSnapshot, Timestamp, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
+// Helper: Get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0]; // เช่น "2025-01-23"
+};
+
+// Helper: Check if session exists today
+const hasSessionToday = () => {
+  const lastSessionDate = localStorage.getItem('lastSessionDate');
+  const today = getTodayDate();
+  return lastSessionDate === today;
+};
+
 // บันทึกการคลิกของผู้ใช้
 export const trackClick = async (elementId, pageUrl, coordinates) => {
   try {
@@ -14,12 +27,13 @@ export const trackClick = async (elementId, pageUrl, coordinates) => {
       x: coordinates.x,
       y: coordinates.y,
       timestamp: Timestamp.now(),
+      date: getTodayDate(), // เพิ่มวันที่
       userId: userId,
       screenWidth: window.innerWidth,
       screenHeight: window.innerHeight
     });
 
-    console.log('✅ Click tracked:', { elementId, pageUrl });
+    console.log('✅ Click tracked:', { elementId, pageUrl, date: getTodayDate() });
   } catch (error) {
     console.error('❌ Error tracking click:', error);
   }
@@ -28,42 +42,68 @@ export const trackClick = async (elementId, pageUrl, coordinates) => {
 // บันทึกข้อมูล Session ของผู้ใช้ (จาก Face Analyzer)
 export const trackUserSession = async (userData) => {
   try {
+    // เช็คว่าวันนี้สร้าง session ไปแล้วหรือยัง
+    if (hasSessionToday()) {
+      console.log('⏭️ Session already exists today, skipping...');
+      return;
+    }
+
     let userId = localStorage.getItem('userId');
     if (!userId) {
       userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       localStorage.setItem('userId', userId);
     }
 
+    const today = getTodayDate();
+
     const sessionData = {
       userId: userId,
       gender: userData.gender || null,
       age: userData.age ? parseInt(userData.age) : null,
       sessionStart: Timestamp.now(),
+      date: today, // เพิ่มวันที่
       deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
       browser: navigator.userAgent
     };
 
     await addDoc(collection(db, 'user_sessions'), sessionData);
+    
+    // บันทึกวันที่ล่าสุดที่สร้าง session
+    localStorage.setItem('lastSessionDate', today);
+    
     console.log('✅ Session tracked:', sessionData);
   } catch (error) {
     console.error('❌ Error tracking session:', error);
   }
 };
 
-// ดึงข้อมูล Heatmap (Real-time)
-export const getHeatmapData = (pageUrl, callback) => {
+// ดึงข้อมูล Heatmap (Real-time) - แยกตามวัน
+export const getHeatmapData = (pageUrl, callback, dateFilter = 'today') => {
   try {
-    const q = query(
-      collection(db, 'heatmap_clicks'),
-      where('pageUrl', '==', pageUrl)
-    );
+    let q;
+    
+    if (dateFilter === 'today') {
+      // ดูเฉพาะวันนี้
+      const today = getTodayDate();
+      q = query(
+        collection(db, 'heatmap_clicks'),
+        where('pageUrl', '==', pageUrl),
+        where('date', '==', today)
+      );
+    } else if (dateFilter === 'all') {
+      // ดูทั้งหมด
+      q = query(
+        collection(db, 'heatmap_clicks'),
+        where('pageUrl', '==', pageUrl)
+      );
+    }
 
     return onSnapshot(q, (snapshot) => {
       const clicks = [];
       snapshot.forEach((doc) => {
         clicks.push({ id: doc.id, ...doc.data() });
       });
-      console.log('📊 Heatmap loaded:', clicks.length, 'clicks');
+      console.log(`📊 Heatmap loaded (${dateFilter}):`, clicks.length, 'clicks');
       callback(clicks);
     });
   } catch (error) {
@@ -107,12 +147,19 @@ export const getDashboardStats = (callback) => {
 
 // คำนวณสถิติ
 const calculateStats = (sessions) => {
-  const now = new Date();
-  const today = sessions.filter(s => {
-    if (!s.sessionStart) return false;
-    const diff = now - s.sessionStart;
-    return diff < 24 * 60 * 60 * 1000;
-  });
+  const today = getTodayDate();
+  
+  // นับ Unique Users ตามวัน (ไม่นับซ้ำ)
+  const uniqueUsersToday = new Set(
+    sessions
+      .filter(s => s.date === today)
+      .map(s => s.userId)
+  ).size;
+
+  // นับผู้ใช้ทั้งหมด (Unique Users ทั้งหมด)
+  const totalUniqueUsers = new Set(
+    sessions.map(s => s.userId)
+  ).size;
 
   const genderCount = sessions.reduce((acc, s) => {
     const gender = s.gender || 'unknown';
@@ -127,16 +174,18 @@ const calculateStats = (sessions) => {
     return acc;
   }, {});
 
-  const hourlyUsers = sessions.reduce((acc, s) => {
-    if (!s.sessionStart) return acc;
-    const hour = s.sessionStart.getHours();
-    acc[hour] = (acc[hour] || 0) + 1;
-    return acc;
-  }, {});
+  const hourlyUsers = sessions
+    .filter(s => s.date === today) // เฉพาะวันนี้
+    .reduce((acc, s) => {
+      if (!s.sessionStart) return acc;
+      const hour = s.sessionStart.getHours();
+      acc[hour] = (acc[hour] || 0) + 1;
+      return acc;
+    }, {});
 
   return {
-    totalUsers: sessions.length,
-    todayUsers: today.length,
+    totalUsers: totalUniqueUsers, // จำนวนผู้ใช้ทั้งหมด (Unique)
+    todayUsers: uniqueUsersToday, // จำนวนผู้ใช้วันนี้ (Unique)
     genderDistribution: genderCount,
     ageDistribution: ageGroups,
     hourlyActivity: hourlyUsers,
@@ -152,10 +201,12 @@ export const cleanupOldData = async () => {
   try {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
 
+    // ลบ clicks เก่า
     const clicksQuery = query(
       collection(db, 'heatmap_clicks'),
-      where('timestamp', '<', Timestamp.fromDate(thirtyDaysAgo))
+      where('date', '<', cutoffDate)
     );
     const clicksSnapshot = await getDocs(clicksQuery);
     
@@ -165,9 +216,10 @@ export const cleanupOldData = async () => {
       deletedClicks++;
     }
 
+    // ลบ sessions เก่า
     const sessionsQuery = query(
       collection(db, 'user_sessions'),
-      where('sessionStart', '<', Timestamp.fromDate(thirtyDaysAgo))
+      where('date', '<', cutoffDate)
     );
     const sessionsSnapshot = await getDocs(sessionsQuery);
     
