@@ -1,7 +1,8 @@
-// FaceAnalyzerPopup.js
+// FaceAnalyzerPopup.js (แก้ไขป้องกันบันทึกซ้ำ)
 import React, { useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
 import { Camera, X } from 'lucide-react';
+import { trackUserSession } from './analyticsService';
 
 const FaceAnalyzerPopup = ({ onClose, onAnalysisComplete, language }) => {
   const videoRef = useRef(null);
@@ -10,8 +11,8 @@ const FaceAnalyzerPopup = ({ onClose, onAnalysisComplete, language }) => {
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [analyzing, setAnalyzing] = useState(true);
   const analysisTimeoutRef = useRef(null);
+  const hasTrackedRef = useRef(false); // ⭐ เพิ่ม flag ป้องกันบันทึกซ้ำ
 
-  // Load face-api.js models
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -33,7 +34,6 @@ const FaceAnalyzerPopup = ({ onClose, onAnalysisComplete, language }) => {
     loadModels();
   }, []);
 
-  // Start webcam
   useEffect(() => {
     if (!modelsLoaded) return;
 
@@ -64,11 +64,13 @@ const FaceAnalyzerPopup = ({ onClose, onAnalysisComplete, language }) => {
     };
   }, [modelsLoaded]);
 
-  // Face detection and analysis
   useEffect(() => {
     if (!modelsLoaded || isLoading) return;
 
     const detectFaces = async () => {
+      // ⭐ ถ้าบันทึกไปแล้ว ไม่ต้องตรวจจับอีก
+      if (hasTrackedRef.current) return;
+
       if (videoRef.current && videoRef.current.readyState === 4) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -97,21 +99,37 @@ const FaceAnalyzerPopup = ({ onClose, onAnalysisComplete, language }) => {
             faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
           }
 
-          if (detections && detections.length > 0 && analyzing) {
+          if (detections && detections.length > 0 && analyzing && !hasTrackedRef.current) {
             const detection = detections[0];
             const { age, gender, genderProbability } = detection;
 
-            // ถ้าความมั่นใจสูงกว่า 70% ให้ทำการวิเคราะห์
             if (genderProbability > 0.7) {
+              // ⭐ ตั้ง flag ทันที ป้องกันเรียกซ้ำ
+              hasTrackedRef.current = true;
               setAnalyzing(false);
               
-              // รอ 1 วินาที แล้วส่งผลลัพธ์
-              setTimeout(() => {
-                onAnalysisComplete({
-                  gender,
-                  age: Math.round(age),
-                  confidence: genderProbability
+              const profileData = {
+                gender,
+                age: Math.round(age),
+                confidence: genderProbability
+              };
+
+              console.log('👤 Face detected:', profileData);
+
+              // บันทึก session เพียงครั้งเดียว
+              try {
+                await trackUserSession({
+                  gender: gender,
+                  age: Math.round(age)
                 });
+
+                console.log('✅ Face data saved to Analytics');
+              } catch (error) {
+                console.error('❌ Error saving face data:', error);
+              }
+
+              setTimeout(() => {
+                onAnalysisComplete(profileData);
               }, 1000);
             }
           }
@@ -123,7 +141,6 @@ const FaceAnalyzerPopup = ({ onClose, onAnalysisComplete, language }) => {
 
     const interval = setInterval(detectFaces, 500);
 
-    // ปิดอัตโนมัติหลัง 10 วินาทีถ้าไม่พบใบหน้า
     analysisTimeoutRef.current = setTimeout(() => {
       if (analyzing) {
         onClose();

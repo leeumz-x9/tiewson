@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera } from 'lucide-react';
 import PDPAOverlay from './PDPAOverlay.js';
@@ -7,17 +6,18 @@ import FaceAnalyzerPopup from './FaceAnalyzerPopup.js';
 import PersonalizedNewsView from './PersonalizedNewsView.js';
 import TiewSonAI from './TiewSonAI.js';
 import AdminCMS from './AdminCMS.js';
+import HeatmapTracker from './HeatmapTracker.js';
+import GeneralInfoView from './GeneralInfoView.js'; 
 
 function App() {
   const [pdpaAccepted, setPdpaAccepted] = useState(false);
   const [language, setLanguage] = useState('th');
   const [userProfile, setUserProfile] = useState(null);
   const [showFaceAnalyzer, setShowFaceAnalyzer] = useState(false);
-  const [mode, setMode] = useState('carousel'); // 'carousel' or 'personalized'
+  const [mode, setMode] = useState('carousel'); // 'carousel', 'personalized', 'general'
   const [showAdmin, setShowAdmin] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
 
-  // Logo click handler for admin access
   const handleLogoClick = () => {
     setLogoClickCount(prev => {
       const newCount = prev + 1;
@@ -27,54 +27,49 @@ function App() {
       }
       return newCount;
     });
-
     if (window.logoTimer) clearTimeout(window.logoTimer);
     window.logoTimer = setTimeout(() => setLogoClickCount(0), 2000);
   };
 
-  // Handle PDPA acceptance
   const handlePDPAAccept = () => {
     setPdpaAccepted(true);
+    setMode('carousel'); 
   };
 
-  // Handle face detection trigger
-  const handleFaceDetected = () => {
-    setShowFaceAnalyzer(true);
+  const handlePDPADecline = () => {
+    setPdpaAccepted(true); 
+    setMode('general'); 
   };
 
-  // Handle face analysis completion
+  // 🔄 แก้ไขฟังก์ชันรีเซ็ต: ให้กลับไปหน้า Carousel ทันทีโดยไม่เด้งไปหน้า PDPA
+  const handleBackToHome = () => {
+    console.log("Auto-Reset: Returning directly to Carousel");
+    setPdpaAccepted(true);   // ✅ ให้เป็น true ไว้เสมอ เพื่อไม่ให้หน้าขาว PDPA โผล่มา
+    setMode('carousel');      // ✅ สั่งให้เปลี่ยนเป็นหน้าโฆษณา
+    setUserProfile(null);
+    setShowFaceAnalyzer(false);
+  };
+
+  const handleFaceDetected = () => setShowFaceAnalyzer(true);
+
   const handleAnalysisComplete = (profile) => {
     setUserProfile(profile);
     setShowFaceAnalyzer(false);
     setMode('personalized');
   };
 
-  // Handle no presence (return to carousel)
-  const handleNoPresence = () => {
-    setMode('carousel');
-    setUserProfile(null);
-  };
-
-  // Admin access (Alt+A)
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (e.altKey && e.key === 'a') {
-        setShowAdmin(!showAdmin);
-      }
+      if (e.altKey && e.key === 'a') setShowAdmin(!showAdmin);
     };
-
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showAdmin]);
 
-  // Show Admin CMS
   if (showAdmin) {
     return (
       <div>
-        <button
-          onClick={() => setShowAdmin(false)}
-          className="fixed top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-lg z-50"
-        >
+        <button onClick={() => setShowAdmin(false)} className="fixed top-4 right-4 bg-red-700 text-white px-5 py-2.5 rounded-lg z-[60] font-medium hover:bg-red-800 transition-colors shadow-lg">
           ออกจากโหมด Admin
         </button>
         <AdminCMS />
@@ -82,83 +77,75 @@ function App() {
     );
   }
 
-  // Show PDPA overlay if not accepted
+  // แสดงหน้า PDPA ครั้งแรกครั้งเดียวตอนเปิดเครื่อง
   if (!pdpaAccepted) {
-    return <PDPAOverlay onAccept={handlePDPAAccept} language={language} />;
+    return (
+      <PDPAOverlay 
+        onAccept={handlePDPAAccept} 
+        onDecline={handlePDPADecline} 
+        language={language} 
+        setLanguage={setLanguage} 
+      />
+    );
   }
 
   return (
-    <>
-    {/* Logo - วางไว้นอก component */}
-    <div 
-      className="fixed top-6 left-6 z-50 cursor-pointer select-none"
-      onClick={handleLogoClick}
-    >
-      <img
-        src="/polylogo.png"
-        alt="Lanna Poly Logo"
-        className="w-20 h-20 object-contain drop-shadow-2xl transition-transform duration-75 active:scale-90 hover:scale-105"
-      />
-    </div>
-      {/* Language Selector - Always visible */}
-      <div className="fixed top-6 right-6 z-30 flex gap-2">
-        {['th', 'en', 'zh', 'ko'].map(lang => (
-          <button
-            key={lang}
-            onClick={() => setLanguage(lang)}
-            className={`px-4 py-2 rounded-lg font-semibold transition shadow-lg ${
-              language === lang
-                ? 'bg-blue-600 text-white'
-                : 'bg-white/90 text-gray-700 hover:bg-white'
-            }`}
-          >
-            {lang.toUpperCase()}
-          </button>
-        ))}
+    <HeatmapTracker enabled={true}>
+      <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 overflow-hidden">
+        
+        {/* 🌐 Header Section */}
+        <div className="relative z-50">
+          <div className="fixed top-8 left-8 cursor-pointer select-none" onClick={handleLogoClick}>
+            <img src="/polylogo.png" alt="Logo" className="w-20 h-20 object-contain drop-shadow-lg" />
+          </div>
+
+          <div className="fixed top-8 right-8 flex gap-2 bg-white/80 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-white/50">
+            {['th', 'en', 'zh', 'ko'].map(lang => (
+              <button
+                key={lang}
+                onClick={() => setLanguage(lang)}
+                className={`px-4 py-2 rounded-xl font-black transition-all ${
+                  language === lang ? 'bg-blue-600 text-white shadow-lg scale-105' : 'text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                {lang.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 📺 Main Content Section */}
+        <div className="relative z-10">
+          {mode === 'carousel' ? (
+            <FullscreenNewsCarousel language={language} onLogoClick={handleLogoClick} />
+          ) : mode === 'personalized' ? (
+            <PersonalizedNewsView 
+                userProfile={userProfile} 
+                language={language} 
+                onNoPresence={handleBackToHome} 
+            />
+          ) : (
+            <GeneralInfoView language={language} onReset={handleBackToHome} />
+          )}
+
+          {showFaceAnalyzer && (
+            <FaceAnalyzerPopup onClose={() => setShowFaceAnalyzer(false)} onAnalysisComplete={handleAnalysisComplete} language={language} />
+          )}
+
+          <TiewSonAI language={language} onLanguageChange={setLanguage} />
+
+          {mode === 'carousel' && (
+            <button
+              onClick={handleFaceDetected}
+              className="fixed bottom-8 left-8 bg-gradient-to-br from-teal-500 via-cyan-600 to-blue-600 text-white px-8 py-4 rounded-2xl shadow-2xl z-30 flex items-center gap-3 animate-bounce shadow-teal-500/20"
+            >
+              <Camera className="w-6 h-6" />
+              <span className="font-bold text-lg">{language === 'th' ? 'เริ่มวิเคราะห์' : 'Start Analysis'}</span>
+            </button>
+          )}
+        </div>
       </div>
-
-      {/* Main Content */}
-      {mode === 'carousel' ? (
-        <FullscreenNewsCarousel 
-          language={language}
-          onLogoClick={handleLogoClick}  // เพิ่มบรรทัดนี้
-        />
-      ) : (
-        <PersonalizedNewsView
-          userProfile={userProfile}
-          language={language}
-          onNoPresence={handleNoPresence}
-        />
-      )}
-
-      {/* Face Analyzer Popup */}
-      {showFaceAnalyzer && (
-        <FaceAnalyzerPopup
-          onClose={() => setShowFaceAnalyzer(false)}
-          onAnalysisComplete={handleAnalysisComplete}
-          language={language}
-        />
-      )}
-
-      {/* Tiew Son AI - Always floating */}
-      <TiewSonAI language={language} onLanguageChange={setLanguage} />
-
-      {/* Trigger Button for Face Detection */}
-      {mode === 'carousel' && (
-        <button
-          onClick={handleFaceDetected}
-          className="fixed bottom-6 left-6 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl hover:bg-blue-700 transition-all hover:scale-105 z-30 flex items-center gap-2"
-        >
-          <Camera className="w-5 h-5" />
-          <span className="font-semibold">
-            {language === 'th' ? 'เริ่มวิเคราะห์' : 
-             language === 'en' ? 'Start Analysis' :
-             language === 'zh' ? '开始分析' : 
-             '분석 시작'}
-          </span>
-        </button>
-      )}
-    </>
+    </HeatmapTracker>
   );
 }
 
