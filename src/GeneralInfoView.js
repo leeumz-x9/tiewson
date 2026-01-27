@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { 
-    GraduationCap, BookOpen, FileText, X, CheckCircle2, 
-    Gamepad2, ChevronRight, Newspaper, Star, Calendar, UserCheck, 
-    MapPin, Monitor, Car, Zap, Radio, Building2, Palette, Laptop, 
-    ShoppingCart, Map, UtensilsCrossed
+import {
+    GraduationCap, BookOpen, FileText, X, CheckCircle2,
+    Gamepad2, ChevronRight, Newspaper, Star, Calendar, UserCheck,
+    MapPin, Monitor, Car, Zap, Radio, Building2, Palette, Laptop,
+    ShoppingCart, Map, UtensilsCrossed,
+    Sparkles, Info, Package, Wrench, Book, User, Activity
 } from 'lucide-react';
 import NewsFeed from './NewsFeed.js';
-
 const GeneralInfoView = ({ language, onReset }) => {
     const scrollRef = useRef(null);
     const [activeTab, setActiveTab] = useState(null);
@@ -202,43 +202,211 @@ const GeneralInfoView = ({ language, onReset }) => {
                                     </div>
                                 </div>
                             )}
+                           {/* Scholarship & Fees Tab */}
+{activeTab === 'scholarship' && (
+    <div className="space-y-24 pb-20 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+        
+        {/* 1. Hero Section: ทุน กสศ. รุ่นที่ 8 - ข้อมูลครบถ้วน 100% */}
+        <section className="relative px-2">
+            <div className="group relative bg-slate-900 rounded-[3.5rem] p-1 overflow-hidden shadow-2xl">
+                {/* Premium Animated Background */}
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-600 via-red-600 to-orange-600 opacity-90 group-hover:scale-110 transition-transform duration-[3s]" />
+                
+                <div className="relative bg-black/20 backdrop-blur-md rounded-[3.4rem] p-8 md:p-16 border border-white/10">
+                    <div className="relative z-10 space-y-12">
+                        {/* Header ข้อมูลสถาบัน */}
+                        <div className="text-center md:text-left space-y-4">
+                            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/20 text-white">
+                                <Sparkles size={16} className="text-orange-300 animate-pulse" />
+                                <span className="text-xs font-black tracking-[0.2em] uppercase">
+                                    {t('เปิดรับสมัครนักศึกษาทุน กสศ. รุ่นที่ 8', 'EQUITY SCHOLARSHIP GEN 8', '助学金 第8代', '장학금 8기')}
+                                </span>
+                            </div>
+                            <h3 className="text-4xl md:text-6xl font-black text-white leading-tight">
+                                {t('วิทยาลัยเทคโนโลยีโปลิเทคนิคลานนา เชียงใหม่', 'Lanna Polytechnic Chiang Mai', '清迈兰纳技术学院', '란나 폴리테크닉 치앙마이')}
+                            </h3>
+                            <p className="text-xl text-orange-200 font-bold uppercase tracking-[0.3em]">
+                                {t('ประจำปีการศึกษา 2569', 'Academic Year 2026', '2026学年', '2026학년도')}
+                            </p>
+                        </div>
 
-                            {/* Scholarship Tab */}
-                            {activeTab === 'scholarship' && (
-                                <div className="space-y-12 pb-10">
-                                    <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-[4rem] p-10 md:p-16 text-white shadow-2xl relative overflow-hidden group">
-                                        <Star className="absolute -top-10 -right-10 text-white/10 group-hover:rotate-12 transition-transform duration-700" size={250} />
-                                        <div className="relative z-10">
-                                            <div className="inline-flex items-center gap-3 bg-white/20 backdrop-blur-xl px-6 py-3 rounded-full text-sm font-bold mb-8 border border-white/20">
-                                                <Calendar size={20} /> {t('สมัครได้ตั้งแต่วันนี้ - 15 กุมภาพันธ์ 2569', 'Apply until Feb 15, 2026', '申请截止至2026年2月15日', '2026년 2월 15일까지 신청 가능')}
-                                            </div>
-                                            <h3 className="text-4xl md:text-6xl font-black mb-8 uppercase leading-tight">ทุน กสศ. รุ่นที่ 8 (2569)</h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                                                <div className="space-y-6">
-                                                    <h4 className="text-2xl font-black border-l-4 border-orange-300 pl-4">{t('สิทธิประโยชน์', 'Benefits', '奖学金福利', '장학금 혜택')}</h4>
-                                                    {[
-                                                        t('เรียนฟรีตลอดหลักสูตร ปวส. 2 ปี', 'Free tuition for 2-year High Voc.', '2年制高职学费全免', '2년제 고등직업과정 학비 전액 면제'),
-                                                        t('มีเงินเดือนให้ระหว่างเรียน', 'Monthly allowance provided', '学习期间提供月度生活补贴', '재학 중 매월 수당 지급'),
-                                                        t('จบแล้วมีงานทำแน่นอน', 'Job guaranteed', '毕业后确保就业', '졸업 후 취업 보장')
-                                                    ].map((item, i) => (
-                                                        <p key={i} className="flex items-center gap-4 font-bold text-xl"><CheckCircle2 className="text-orange-200 shrink-0" /> {item}</p>
-                                                    ))}
-                                                </div>
-                                                <div className="space-y-6">
-                                                    <h4 className="text-2xl font-black border-l-4 border-orange-300 pl-4">{t('คุณสมบัติ', 'Qualifications', '申请资格', '신청 자격')}</h4>
-                                                    {[
-                                                        t('กำลังจบ ม.6 / ปวช.3 / กศน.', 'Graduating Grade 12 / Voc 3', '即将高中/中专毕业', '고등학교/직업학교 졸업 예정'),
-                                                        t('GPAX (5 เทอม) ไม่ต่ำกว่า 3.00', 'GPAX >= 3.00', '平均绩点(GPAX)不低于3.00', 'GPAX(5학기) 3.00 이상')
-                                                    ].map((item, i) => (
-                                                        <p key={i} className="flex items-start gap-4 font-bold text-xl"><UserCheck className="text-orange-200 shrink-0" /> {item}</p>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* สิทธิประโยชน์ */}
+                            <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 group/item hover:bg-white/20 transition-all">
+                                <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+                                    <CheckCircle2 className="text-orange-400" /> {t('สิทธิประโยชน์', 'Benefits', '福利', '혜택')}
+                                </h4>
+                                <ul className="space-y-4 text-white font-bold text-lg">
+                                    <li className="flex items-start gap-2 italic text-orange-200 underline decoration-2 underline-offset-4">⭐ {t('เรียนฟรีตลอดหลักสูตร', 'Free Tuition', '全免学费', '전액 무료 교육')}</li>
+                                    <li>• {t('มีเงินเดือนระหว่างเรียน', 'Monthly Allowance', '月度生活补贴', '매월 수당 지급')}</li>
+                                    <li>• {t('หลักสูตร ปวส. 2 ปี', '2-Year Associate Degree', '2年制高职', '2년제 고등직업과정')}</li>
+                                </ul>
+                            </div>
+
+                            {/* สาขาที่เปิดรับ */}
+                            <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 group/item hover:bg-white/20 transition-all">
+                                <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+                                    <BookOpen className="text-orange-400" /> {t('สาขาที่เปิดรับ', 'Available Majors', '开放专业', '모집 학과')}
+                                </h4>
+                                <ul className="space-y-4 text-white font-bold text-lg">
+                                    <li className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl">
+                                        <div className="w-2 h-2 bg-orange-400 rounded-full" /> {t('เทคโนโลยีสารสนเทศ', 'Information Technology', '信息技术', '정보기술')}
+                                    </li>
+                                    <li className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl">
+                                        <div className="w-2 h-2 bg-orange-400 rounded-full" /> {t('การท่องเที่ยว', 'Tourism', '旅游', '관광')}
+                                    </li>
+                                    <li className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl">
+                                        <div className="w-2 h-2 bg-orange-400 rounded-full" /> {t('การบัญชี', 'Accounting', '会计', '회계')}
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* โอกาสหลังจบการศึกษา */}
+                            <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 group/item hover:bg-white/20 transition-all">
+                                <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+                                    <GraduationCap className="text-orange-400" /> {t('จบแล้วมีอนาคต', 'Future Career', '毕业前景', '졸업 후 진로')}
+                                </h4>
+                                <ul className="space-y-4 text-white/90 font-bold">
+                                    <li className="flex items-center gap-2">✅ {t('จบแล้วมีงานทำแน่นอน', 'Guaranteed Job', '毕业即就业', '취업 확실')}</li>
+                                    <li className="flex items-center gap-2">✅ {t('มีสถานประกอบการรองรับ', 'Partner Companies', '签约企业保障', '협력 업체 대기')}</li>
+                                    <li className="flex items-center gap-2">✅ {t('มีมหาวิทยาลัยรองรับการต่อยอด', 'University Pathways', '支持深造', '대학 진학 지원')}</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* คุณสมบัติ & กำหนดการ */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/10">
+                            <div className="space-y-4">
+                                <h5 className="text-orange-300 font-black flex items-center gap-2"><UserCheck size={20} /> {t('คุณสมบัติผู้สมัคร', 'Qualifications', '申请资格', '신청 자격')}</h5>
+                                <ul className="text-white/80 space-y-2 font-bold text-sm">
+                                    <li>- {t('กำลังจะจบ ม.6 / ปวช.3 หรือเทียบเท่า (กศน.)', 'Graduating G12/Voc3/NFE', '高中/中专毕业', '고교/직업교 졸업예정')}</li>
+                                    <li>- {t('GPAX 5 เทอม ไม่ต่ำกว่า 3.00', 'GPAX >= 3.00 (5 Semesters)', '成绩3.00+', 'GPAX 3.00 이상')}</li>
+                                    <li>- {t('ขาดแคลนทุนทรัพย์หรือด้อยโอกาส', 'Financial Need / Underprivileged', '家庭贫困或机会缺乏', '저소득층 및 취약계층')}</li>
+                                </ul>
+                            </div>
+                            <div className="flex flex-col items-center md:items-end justify-center">
+                                <div className="bg-orange-500 text-white px-10 py-6 rounded-[2rem] text-center shadow-2xl transform hover:scale-105 transition-transform">
+                                    <p className="text-xs font-black tracking-widest uppercase mb-2">{t('สมัครได้ตั้งแต่วันนี้', 'Apply Now', '立即申请', '지금 신청하세요')}</p>
+                                    <p className="text-2xl font-black">{t('ถึง 15 กุมภาพันธ์ 2569', 'Until Feb 15, 2026', '至2026年2月15日', '2026년 2월 15일까지')}</p>
                                 </div>
-                            )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
+        {/* 2. Tuition Fees & All-Inclusive Package */}
+        <section className="space-y-16 px-4">
+            <div className="text-center space-y-4">
+                <h2 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight uppercase">
+                    {t('ค่าธรรมเนียมการศึกษา', 'TUITION FEES', '教育学费', '수강료')}
+                </h2>
+                <div className="h-1.5 w-24 bg-blue-600 mx-auto rounded-full"></div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* ปวช. Card */}
+                <div className="bg-white rounded-[3.5rem] p-10 md:p-14 border border-slate-100 shadow-xl group hover:-translate-y-2 transition-all duration-500">
+                    <div className="flex justify-between items-center mb-10">
+                        <div>
+                            <span className="text-blue-600 font-black text-xs tracking-widest uppercase italic">Vocational Cert.</span>
+                            <h3 className="text-5xl font-black text-slate-900 mt-1">{t('ปวช.', 'VOC', '中专', '직업학교')}</h3>
+                        </div>
+                        <BookOpen size={48} className="text-blue-100 group-hover:text-blue-600 transition-colors" />
+                    </div>
+                    <div className="space-y-4 mb-8">
+                        <div className="flex justify-between p-5 bg-slate-50 rounded-2xl">
+                            <span className="font-bold text-slate-600">{t('ช่างอุตสาหกรรม', 'Industrial', '工业', '공업')}</span>
+                            <span className="font-black text-2xl text-slate-900">9,000.-</span>
+                        </div>
+                        <div className="flex justify-between p-5 bg-slate-50 rounded-2xl">
+                            <span className="font-bold text-slate-600">{t('บริหารธุรกิจ / การท่องเที่ยว', 'Business & Tourism', '商务与旅游', '경영 및 관광')}</span>
+                            <span className="font-black text-2xl text-slate-900">7,000.-</span>
+                        </div>
+                    </div>
+                    <div className="p-6 bg-blue-600 rounded-[2rem] text-white flex justify-between items-center">
+                        <span className="font-bold text-sm">{t('ค่าแรกเข้าและอุปกรณ์ทั้งหมด', 'Full Supplies & Entry', '杂费', '입학금 및 교구')}</span>
+                        <span className="font-black text-xl">3,100.-</span>
+                    </div>
+                </div>
+
+                {/* ปวส. Card */}
+                <div className="bg-white rounded-[3.5rem] p-10 md:p-14 border border-slate-100 shadow-xl group hover:-translate-y-2 transition-all duration-500">
+                    <div className="flex justify-between items-center mb-10">
+                        <div>
+                            <span className="text-indigo-600 font-black text-xs tracking-widest uppercase italic">Associate Degree</span>
+                            <h3 className="text-5xl font-black text-slate-900 mt-1">{t('ปวส.', 'DIPLOMA', '高职', '고등직업')}</h3>
+                        </div>
+                        <GraduationCap size={48} className="text-indigo-100 group-hover:text-indigo-600 transition-colors" />
+                    </div>
+                    <div className="space-y-4 mb-8">
+                        <div className="flex justify-between p-5 bg-slate-50 rounded-2xl">
+                            <span className="font-bold text-slate-600">{t('ช่างอุตสาหกรรม', 'Industrial', '工业', '공업')}</span>
+                            <span className="font-black text-2xl text-slate-900">18,700.-</span>
+                        </div>
+                        <div className="flex justify-between p-5 bg-slate-50 rounded-2xl">
+                            <span className="font-bold text-slate-600">{t('บริหารธุรกิจ / การท่องเที่ยว', 'Business & Tourism', '商务与旅游', '경영 및 관광')}</span>
+                            <span className="font-black text-2xl text-slate-900">16,000.-</span>
+                        </div>
+                    </div>
+                    <div className="p-6 bg-indigo-600 rounded-[2rem] text-white flex justify-between items-center">
+                        <span className="font-bold text-sm">{t('ค่าแรกเข้าและอุปกรณ์ทั้งหมด', 'Full Supplies & Entry', '杂费', '입학금 및 교구')}</span>
+                        <span className="font-black text-xl">3,000.-</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* 3. Package Items & Contact Footer */}
+        <section className="px-4">
+            <div className="bg-slate-900 rounded-[4rem] p-10 md:p-20 text-white relative overflow-hidden">
+                <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16">
+                    <div className="space-y-8">
+                        <h4 className="text-3xl font-black italic">{t('สิ่งที่คุณจะได้รับ', 'WHAT YOU GET', '包含项目', '제공 항목')}</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[
+                                { text: t('อุปกรณ์การเรียนตามหลักสูตร', 'Full Equipment', '教材设备', '실습 도구'), icon: <Wrench size={18} /> },
+                                { text: t('หนังสือเรียนทุกวิชา', 'All Textbooks', '全部书本', '전과목 교과서'), icon: <Book size={18} /> },
+                                { text: t('ชุดนักศึกษา 2 ชุด', '2 Uniforms', '2套校服', '교복 2벌'), icon: <User size={18} /> },
+                                { text: t('ชุดพละ 1 ชุด', '1 PE Uniform', '1套运动服', '체육복 1벌'), icon: <Activity size={18} /> }
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+                                    <div className="text-orange-400">{item.icon}</div>
+                                    <span className="font-bold">{item.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col justify-center space-y-8">
+                        <div className="p-8 bg-white/10 backdrop-blur-md rounded-[3rem] border border-white/20 space-y-6">
+                            <h5 className="text-xl font-black tracking-tighter text-orange-300">{t('สอบถามข้อมูลเพิ่มเติม', 'CONTACT US', '联系我们', '문의하기')}</h5>
+                            <div className="space-y-4 font-bold">
+                                <a href="tel:0982473666" className="flex items-center gap-4 hover:text-orange-400 transition-colors">
+                                    <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center"><Monitor size={18} /></div>
+                                    098-247-3666
+                                </a>
+                                <a href="https://www.facebook.com/lannapolyCNX/?locale=th_TH" target="_blank" rel="noreferrer" className="flex items-center gap-4 hover:text-blue-400 transition-colors">
+                                    <div className="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center"><Radio size={18} /></div>
+                                    Facebook: lannapolyCNX
+                                </a>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-emerald-600/20 rounded-full flex items-center justify-center"><Zap size={18} /></div>
+                                    Line: @lannapoly
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 p-12 opacity-5">
+                    <Star size={300} />
+                </div>
+            </div>
+        </section>
+    </div>
+)}
                             {/* Courses Tab */}
                             {activeTab === 'courses' && (
                                 <div className="space-y-10">
