@@ -78,9 +78,7 @@ const PersonalizedNewsView = ({ userProfile, language, onNoPresence }) => {
     };
     return texts[key][language] || texts[key].th;
   };
-
   const handleInteraction = () => { lastDetectionTime.current = Date.now(); };
-
   return (
     <div className="min-h-screen bg-white" onClick={handleInteraction}>
       {/* --- Header: Clean Style Without Live Analysis --- */}

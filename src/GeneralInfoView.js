@@ -7,10 +7,38 @@ import {
     Sparkles, Info, Package, Wrench, Book, User, Activity
 } from 'lucide-react';
 import NewsFeed from './NewsFeed.js';
+
 const GeneralInfoView = ({ language, onReset }) => {
     const scrollRef = useRef(null);
     const [activeTab, setActiveTab] = useState(null);
     const [courseLevel, setCourseLevel] = useState('voc');
+
+    // เพิ่มระบบ inactivity reset 30 วินาที
+    const lastInteractionTime = useRef(Date.now());
+    const inactivityInterval = useRef(null);
+
+    useEffect(() => {
+        inactivityInterval.current = setInterval(() => {
+            const timeSinceLast = Date.now() - lastInteractionTime.current;
+            if (timeSinceLast > 30000) {
+                if (typeof onReset === 'function') {
+                    onReset();
+                } else {
+                    window.location.href = '/fullscreennew';
+                }
+            }
+        }, 1000);
+        const resetInteraction = () => { lastInteractionTime.current = Date.now(); };
+        window.addEventListener('mousemove', resetInteraction);
+        window.addEventListener('keydown', resetInteraction);
+        window.addEventListener('touchstart', resetInteraction);
+        return () => {
+            if (inactivityInterval.current) clearInterval(inactivityInterval.current);
+            window.removeEventListener('mousemove', resetInteraction);
+            window.removeEventListener('keydown', resetInteraction);
+            window.removeEventListener('touchstart', resetInteraction);
+        };
+    }, [onReset]);
 
     const t = (th, en, zh, ko) => {
         const lang = String(language || 'th').toLowerCase();
@@ -19,6 +47,7 @@ const GeneralInfoView = ({ language, onReset }) => {
         if (lang === 'en' && en) return en;
         return th;
     };
+    
 
     useEffect(() => {
         if (activeTab) {

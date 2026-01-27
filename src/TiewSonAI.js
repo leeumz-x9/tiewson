@@ -1,4 +1,4 @@
-// TiewSonAI.js - Clean Version with Auto-Restart Wake Word new
+// TiewSonAI.js - Fixed for Android TV - Clean Version with Auto-Restart Wake Word
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, MicOff, Send, Volume2, VolumeX, Globe } from 'lucide-react';
 
@@ -48,7 +48,10 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
     const isRecognitionActive = useRef(false);
     const isWakeWordActive = useRef(false);
     const isMobileDevice = useRef(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    const isAndroidDevice = useRef(/Android/i.test(navigator.userAgent)); // ✅ เพิ่มการตรวจจับ Android
     const wakeWordRestartTimeoutRef = useRef(null);
+    const recognitionTimeoutRef = useRef(null);
+    const silenceTimeoutRef = useRef(null); // ✅ เพิ่ม timeout สำหรับตรวจจับเงียบ
 
     // ========================== SPEECH SYNTHESIS ==========================
     const speak = useCallback((text) => {
@@ -277,22 +280,28 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
                 setIsWakeWordListening(false);
                 console.log('🛑 Wake word ended');
 
+                // ✅ เพิ่มการเช็ค isExpanded อีกครั้งก่อน restart
+                if (wakeWordRestartTimeoutRef.current) {
+                    clearTimeout(wakeWordRestartTimeoutRef.current);
+                }
+
                 // Auto-restart if not in chat mode
                 if (!isExpanded && !isListening) {
-                    if (wakeWordRestartTimeoutRef.current) {
-                        clearTimeout(wakeWordRestartTimeoutRef.current);
-                    }
-                    
                     wakeWordRestartTimeoutRef.current = setTimeout(() => {
-                        if (!isWakeWordActive.current && !isExpanded && !isListening) {
+                        // ✅ Double check ว่ายังไม่ได้เปิดแชทก่อน restart
+                        if (!isWakeWordActive.current && !isExpanded && !isListening && !isRecognitionActive.current) {
                             try {
                                 console.log('🔄 Restarting wake word');
                                 wakeWord.start();
                             } catch (e) {
                                 console.warn('Restart failed:', e.message);
                             }
+                        } else {
+                            console.log('⏸️ Skip restart - chat is active');
                         }
                     }, 1500);
+                } else {
+                    console.log('⏸️ Not restarting - chat active or listening');
                 }
             };
 
@@ -330,27 +339,33 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
             };
 
             wakeWord.onerror = (e) => {
-                console.log('⚠️ Error:', e.error);
+                console.log('⚠️ Wake word error:', e.error);
                 
+                // ✅ ยกเว้น error ที่ไม่จำเป็นต้อง restart
                 if (['no-speech', 'aborted', 'audio-capture'].includes(e.error)) {
                     return;
                 }
                 
-                if (!isExpanded && !isListening) {
+                // ✅ เช็คว่าไม่ได้อยู่ในโหมดแชทก่อน restart
+                if (!isExpanded && !isListening && !isRecognitionActive.current) {
                     if (wakeWordRestartTimeoutRef.current) {
                         clearTimeout(wakeWordRestartTimeoutRef.current);
                     }
                     
                     wakeWordRestartTimeoutRef.current = setTimeout(() => {
-                        if (!isWakeWordActive.current) {
+                        if (!isWakeWordActive.current && !isExpanded && !isListening && !isRecognitionActive.current) {
                             try {
                                 console.log('🔄 Restart after error');
                                 wakeWord.start();
                             } catch (err) {
                                 console.warn('Error restart failed:', err.message);
                             }
+                        } else {
+                            console.log('⏸️ Skip error restart - chat active');
                         }
                     }, 2000);
+                } else {
+                    console.log('⏸️ Not restarting after error - chat active');
                 }
             };
 
@@ -359,45 +374,226 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
             console.error('Wake word init failed:', error);
         }
 
-        // Chat Recognition
+        // ✅ FIXED: Chat Recognition for Android TV
         try {
             const chatRecognition = new SpeechRecognition();
-            chatRecognition.continuous = false;
-            chatRecognition.interimResults = false;
+            
+            // ✅ ตั้งค่าเฉพาะสำหรับ Android
+            if (isAndroidDevice.current) {
+                chatRecognition.continuous = true;
+                chatRecognition.interimResults = true;
+                chatRecognition.maxAlternatives = 3; // ✅ เพิ่มทางเลือกในการรับรู้เสียง
+                console.log('🤖 Android mode: continuous=true, interimResults=true, maxAlternatives=3');
+            } else {
+                chatRecognition.continuous = true;
+                chatRecognition.interimResults = true;
+            }
+            
+            let recognitionTimeout = null;
+            let silenceTimeout = null;
+            let lastTranscript = '';
+            let finalTranscript = '';
+            let lastSpeechTime = Date.now();
 
             chatRecognition.onstart = () => {
                 isRecognitionActive.current = true;
                 setIsListening(true);
+                lastTranscript = '';
+                finalTranscript = '';
+                lastSpeechTime = Date.now();
+                
+                console.log('🎤 Chat recognition started (Android:', isAndroidDevice.current, ')');
+                
+                // ✅ Timeout หลัก - ป้องกันไม่ให้ทำงานเกิน 30 วินาที
+                recognitionTimeout = setTimeout(() => {
+                    if (isRecognitionActive.current) {
+                        console.log('⏱️ Recognition timeout (30s) - stopping');
+                        chatRecognition.stop();
+                    }
+                }, 30000); // ✅ เพิ่มเป็น 30 วินาที
+                
+                // ✅ สำหรับ Android: เช็คว่ายังมีเสียงอยู่หรือไม่ทุกๆ 1 วินาที
+                if (isAndroidDevice.current) {
+                    const checkSilence = () => {
+                        if (!isRecognitionActive.current) return;
+                        
+                        const now = Date.now();
+                        const timeSinceLastSpeech = now - lastSpeechTime;
+                        
+                        // ถ้าเงียบเกิน 5 วินาทีและมีข้อความอยู่แล้ว
+                        if (timeSinceLastSpeech > 5000 && finalTranscript.trim()) {
+                            console.log('🔇 Silence detected (5s) - stopping');
+                            chatRecognition.stop();
+                        } else if (timeSinceLastSpeech < 20000) {
+                            // ถ้ายังมีเสียง ให้เช็คต่อ
+                            silenceTimeout = setTimeout(checkSilence, 1000);
+                        }
+                    };
+                    
+                    silenceTimeout = setTimeout(checkSilence, 1000);
+                }
             };
 
             chatRecognition.onend = () => {
+                console.log('🛑 Chat recognition ended');
+                console.log('   📊 Final transcript length:', finalTranscript.trim().length);
+                console.log('   ⚙️ isRecognitionActive:', isRecognitionActive.current);
+                
+                // ✅ Force update state ก่อน
+                const wasActive = isRecognitionActive.current;
                 isRecognitionActive.current = false;
                 setIsListening(false);
+                
+                // ✅ เคลียร์ timeout ทั้งหมด
+                if (recognitionTimeout) {
+                    clearTimeout(recognitionTimeout);
+                    recognitionTimeout = null;
+                }
+                
+                if (silenceTimeout) {
+                    clearTimeout(silenceTimeout);
+                    silenceTimeout = null;
+                }
+                
+                // ✅ ส่งข้อความสุดท้ายถ้ามี และไม่ใช่การกดปิดด้วยตนเอง
+                if (finalTranscript.trim() && wasActive) {
+                    console.log('📤 Sending final transcript:', finalTranscript.trim());
+                    const textToSend = finalTranscript.trim();
+                    finalTranscript = ''; // ✅ เคลียร์ก่อนส่ง
+                    
+                    setInputText(textToSend);
+                    
+                    // ✅ ใช้ setTimeout เพื่อให้ state update ก่อน
+                    setTimeout(() => {
+                        handleSendMessage(textToSend);
+                    }, 100);
+                } else {
+                    console.log('⏸️ Stopped without sending (user cancelled or no speech)');
+                    finalTranscript = ''; // ✅ เคลียร์ข้อความ
+                    setInputText(''); // ✅ เคลียร์ input box
+                }
             };
 
             chatRecognition.onresult = (event) => {
-                const result = event.results[0][0];
-                const transcript = result.transcript;
-                const confidence = result.confidence;
+                lastSpeechTime = Date.now(); // ✅ อัพเดทเวลาที่ได้ยินเสียงล่าสุด
+                let interimTranscript = '';
                 
-                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                console.log('💬 CHAT - Speech Detected:');
-                console.log('   📝 Transcript:', transcript);
-                console.log('   🎯 Confidence:', (confidence * 100).toFixed(1) + '%');
-                console.log('   📤 Sending to AI...');
-                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                
-                setInputText(transcript);
-                handleSendMessage(transcript);
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    const transcript = result[0].transcript;
+                    
+                    if (result.isFinal) {
+                        finalTranscript += transcript + ' ';
+                        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                        console.log('💬 CHAT - Final Speech:');
+                        console.log('   📝 Transcript:', transcript);
+                        console.log('   🎯 Confidence:', (result[0].confidence * 100).toFixed(1) + '%');
+                        console.log('   📊 Total so far:', finalTranscript.trim());
+                        console.log('   ⏰ Time since start:', ((Date.now() - lastSpeechTime) / 1000).toFixed(1) + 's');
+                        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                        
+                        // ✅ สำหรับ Android: ถ้าได้ประโยคที่สมบูรณ์แล้ว ให้รีเซ็ต silence timer
+                        if (isAndroidDevice.current && finalTranscript.trim().length > 5) {
+                            console.log('🔄 Got speech, resetting silence timer');
+                            lastSpeechTime = Date.now();
+                        }
+                    } else {
+                        interimTranscript += transcript;
+                        console.log('⏳ Interim:', transcript);
+                        
+                        // ✅ แสดงข้อความระหว่างพูดใน input
+                        setInputText((finalTranscript + interimTranscript).trim());
+                        
+                        // ✅ รีเซ็ต lastSpeechTime เมื่อมี interim results
+                        lastSpeechTime = Date.now();
+                    }
+                }
             };
 
             chatRecognition.onerror = (e) => {
-                if (e.error !== 'no-speech' && e.error !== 'aborted') {
-                    console.warn('Recognition error:', e.error);
+                console.warn('❌ Recognition error:', e.error);
+                
+                // ✅ เคลียร์ timeout
+                if (recognitionTimeout) {
+                    clearTimeout(recognitionTimeout);
+                    recognitionTimeout = null;
                 }
+                
+                if (silenceTimeout) {
+                    clearTimeout(silenceTimeout);
+                    silenceTimeout = null;
+                }
+                
+                // ✅ ถ้าเป็น 'aborted' แสดงว่าผู้ใช้กดปิดเอง - ไม่ต้องส่งข้อความ
+                if (e.error === 'aborted') {
+                    console.log('⏸️ User cancelled - clearing transcript');
+                    finalTranscript = '';
+                    setInputText('');
+                    setIsListening(false);
+                    isRecognitionActive.current = false;
+                    return;
+                }
+                
+                // ✅ สำหรับ Android: ถ้า error อื่นๆ แต่มีข้อความ ให้ส่งไปเลย
+                if (isAndroidDevice.current && finalTranscript.trim() && e.error !== 'aborted') {
+                    console.log('📤 Sending transcript despite error (' + e.error + '):', finalTranscript.trim());
+                    const textToSend = finalTranscript.trim();
+                    finalTranscript = '';
+                    setInputText(textToSend);
+                    setTimeout(() => {
+                        handleSendMessage(textToSend);
+                    }, 100);
+                }
+                
+                // ✅ ถ้าเป็น no-speech และมีข้อความ ให้ส่ง
+                else if (e.error === 'no-speech' && finalTranscript.trim()) {
+                    console.log('📤 Sending transcript despite no-speech:', finalTranscript.trim());
+                    const textToSend = finalTranscript.trim();
+                    finalTranscript = '';
+                    setInputText(textToSend);
+                    setTimeout(() => {
+                        handleSendMessage(textToSend);
+                    }, 100);
+                }
+                
+                // ✅ Error อื่นๆ - เคลียร์ทุกอย่าง
+                else {
+                    finalTranscript = '';
+                    setInputText('');
+                }
+                
                 setIsListening(false);
                 isRecognitionActive.current = false;
             };
+            
+            // ✅ สำหรับ Android: เพิ่ม event handlers เพิ่มเติม
+            if (isAndroidDevice.current) {
+                chatRecognition.onsoundstart = () => {
+                    console.log('🔊 Sound detected');
+                    lastSpeechTime = Date.now();
+                };
+                
+                chatRecognition.onsoundend = () => {
+                    console.log('🔇 Sound ended');
+                };
+                
+                chatRecognition.onspeechstart = () => {
+                    console.log('💬 Speech started');
+                    lastSpeechTime = Date.now();
+                };
+                
+                chatRecognition.onspeechend = () => {
+                    console.log('💬 Speech ended');
+                };
+                
+                chatRecognition.onaudiostart = () => {
+                    console.log('🎙️ Audio capture started');
+                };
+                
+                chatRecognition.onaudioend = () => {
+                    console.log('🎙️ Audio capture ended');
+                };
+            }
 
             recognitionRef.current = chatRecognition;
         } catch (error) {
@@ -407,6 +603,12 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
         return () => {
             if (wakeWordRestartTimeoutRef.current) {
                 clearTimeout(wakeWordRestartTimeoutRef.current);
+            }
+            if (recognitionTimeoutRef.current) {
+                clearTimeout(recognitionTimeoutRef.current);
+            }
+            if (silenceTimeoutRef.current) {
+                clearTimeout(silenceTimeoutRef.current);
             }
             wakeWordRecognitionRef.current?.stop();
             recognitionRef.current?.stop();
@@ -446,7 +648,23 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
     // ========================== HANDLERS ==========================
     const toggleListening = useCallback(() => {
         if (isListening) {
-            recognitionRef.current?.stop();
+            console.log('🛑 Manually stopping recognition');
+            
+            // ✅ Force stop - เคลียร์ทุกอย่าง
+            if (recognitionRef.current) {
+                try {
+                    recognitionRef.current.stop();
+                } catch (e) {
+                    console.warn('Stop error (ignored):', e.message);
+                }
+            }
+            
+            // ✅ Force update state
+            setIsListening(false);
+            isRecognitionActive.current = false;
+            
+            // ✅ เคลียร์ input ถ้ายังไม่มีข้อความสมบูรณ์
+            setInputText('');
         } else {
             stopSpeaking();
 
@@ -455,11 +673,15 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
                     const langCodes = { th: 'th-TH', en: 'en-US', zh: 'zh-CN', ko: 'ko-KR' };
                     if (recognitionRef.current) {
                         recognitionRef.current.lang = langCodes[language] || 'th-TH';
+                        console.log('▶️ Starting recognition');
+                        console.log('   🌍 Language:', langCodes[language]);
+                        console.log('   📱 Device: Android=' + isAndroidDevice.current + ', Mobile=' + isMobileDevice.current);
+                        console.log('   ⚙️ Settings: continuous=' + recognitionRef.current.continuous + ', interimResults=' + recognitionRef.current.interimResults);
                         recognitionRef.current.start();
                     }
                 } catch (e) {
                     if (!e.message.includes('already started')) {
-                        console.error('Mic start failed:', e);
+                        console.error('❌ Mic start failed:', e);
                     }
                 }
             }, 200);
@@ -658,11 +880,19 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
                         {(isListening || isProcessing || isSpeaking) && (
                             <div className="md:hidden bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-2 border-b border-blue-200">
                                 {isListening && (
-                                    <div className="flex items-center gap-2 text-red-600">
-                                        <Mic className="w-4 h-4 animate-pulse" />
-                                        <span className="text-xs font-semibold">
-                                            {language === 'th' ? 'กำลังฟัง...' : 'Listening...'}
-                                        </span>
+                                    <div className="flex items-center justify-between text-red-600">
+                                        <div className="flex items-center gap-2">
+                                            <Mic className="w-4 h-4 animate-pulse" />
+                                            <span className="text-xs font-semibold">
+                                                {language === 'th' ? '🎤 กำลังฟัง... (กดอีกครั้งเพื่อหยุด)' : '🎤 Listening... (tap to stop)'}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={toggleListening}
+                                            className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                                        >
+                                            {language === 'th' ? 'หยุด' : 'Stop'}
+                                        </button>
                                     </div>
                                 )}
                                 {isProcessing && !isSpeaking && (
@@ -735,11 +965,15 @@ const TiewSonAI = ({ language, onLanguageChange, userProfile }) => {
                                 <button
                                     onClick={toggleListening}
                                     className={`p-2 md:p-3 rounded-xl transition-all ${isListening
-                                            ? 'bg-red-500 text-white scale-110'
+                                            ? 'bg-red-500 text-white scale-110 animate-pulse'
                                             : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
                                         }`}
                                     disabled={isProcessing}
                                     aria-label={isListening ? 'Stop listening' : 'Start listening'}
+                                    title={isListening 
+                                        ? (language === 'th' ? '⏹️ หยุดบันทึกเสียง' : '⏹️ Stop recording') 
+                                        : (language === 'th' ? '🎤 เริ่มบันทึกเสียง' : '🎤 Start recording')
+                                    }
                                 >
                                     {isListening ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
                                 </button>
