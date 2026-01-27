@@ -90,7 +90,7 @@ const GeneralInfoView = ({ language, onReset }) => {
             {/* Header Section */}
             <div className="text-center mb-16">
                 <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-slate-900 mb-6 tracking-tighter uppercase leading-none">
-                    {t('ก้าวสู่อนาคตที่เหนือกว่า', 'BEYOND YOUR FUTURE', '迈向卓越未来', '미래를 넘어서')}
+                    {t('ก้าวสู่อนาคตไปกับเรา', 'BEYOND YOUR FUTURE', '迈向卓越未来', '미래를 넘어서')}
                 </h1>
                 <div className="flex items-center justify-center gap-4">
                     <div className="h-[2px] w-12 bg-blue-600 hidden md:block"></div>
