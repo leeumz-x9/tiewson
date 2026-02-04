@@ -8,7 +8,7 @@ module.exports = {
     extend: {
       colors: {
         lanna: {
-          blue: '#1E40AF',
+          blue: '#696FC7',
           gold: '#F59E0B',
           green: '#10B981'
         }
